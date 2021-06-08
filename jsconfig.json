@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "baseUrl": "."
+  },
+  "exclude": [
+    "node_modules",
+  ],
+  "include": [
+    "components",
+    "features",
+    "pages",
+    "utils"
+  ]
+}
