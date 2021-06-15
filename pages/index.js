@@ -21,14 +21,12 @@ import {
   Link
 } from "@chakra-ui/react";
 
-import Navigation from "components/Navigation";
 import {Logo} from "components/Icons";
 import {Discussion, Editor, Feedback, Manage} from "components/Illustrations";
 
 export default function Home() {
   return (
     <>
-      <Navigation />
       <Container marginTop="16" maxWidth="container.lg">
         <NextHead>
           <title>

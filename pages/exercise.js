@@ -1,6 +1,6 @@
 import React from "react";
 import Head from "next/head";
-
+import NextLink from "next/link";
 import {Box, Container, Flex, Heading, Text} from "@chakra-ui/layout";
 import {UnControlled as CodeMirror} from "react-codemirror2";
 import ReactMarkdown from "react-markdown";
@@ -17,7 +17,10 @@ import {
   ModalBody,
   ModalCloseButton,
   UnorderedList,
-  ListItem
+  ListItem,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink
 } from "@chakra-ui/react";
 import {ghcolors} from "react-syntax-highlighter/dist/cjs/styles/prism";
 import "codemirror/lib/codemirror.css";
@@ -153,7 +156,29 @@ it('variabel seratus menyimpan nilai 100', function() {
         </ModalContent>
       </Modal>
       <Flex overflow="hidden">
-        <Box width="50%" height="100vh" overflowY="auto" padding="6">
+        <Box
+          width="50%"
+          height="calc(100vh - 75px)"
+          overflowY="auto"
+          padding="6"
+        >
+          <Breadcrumb marginBottom="4">
+            <BreadcrumbItem>
+              <NextLink href="#" passHref>
+                <BreadcrumbLink color="green.500">
+                  Pemrograman Dasar
+                </BreadcrumbLink>
+              </NextLink>
+            </BreadcrumbItem>
+
+            <BreadcrumbItem isCurrentPage>
+              <NextLink href="#" passHref>
+                <BreadcrumbLink color="green.500">
+                  Dasar JavaScript: Deklarasi Variabel
+                </BreadcrumbLink>
+              </NextLink>
+            </BreadcrumbItem>
+          </Breadcrumb>
           <Heading as="h3" color="gray.800" fontSize="3xl">
             Dasar JavaScript: Deklarasi Variabel
           </Heading>
@@ -190,12 +215,10 @@ it('variabel seratus menyimpan nilai 100', function() {
             Dapatkan Bantuan
           </Button>
         </Box>
-        <Box height="100vh" width="50%">
+        <Box height="calc(100vh - 75px)" width="50%">
           <CodeMirror
-            onChange={(editor, data, value) => {
-              setCodeValue(value);
-            }}
-            editorDidMount={editor => editor.setSize("", "100%")}
+            onChange={(editor, data, value) => setCodeValue(value)}
+            editorDidMount={editor => editor.setSize("100%", "100%")}
             options={{
               theme: "eclipse",
               lineNumbers: true,
@@ -204,10 +227,10 @@ it('variabel seratus menyimpan nilai 100', function() {
               autofocus: true
             }}
           />
-          <Divider size="8" />
+          <Divider />
           <CodeMirror
             value={testCode}
-            editorDidMount={editor => editor.setSize("", "100%")}
+            editorDidMount={editor => editor.setSize("100%", "100%")}
             options={{
               theme: "eclipse",
               lineNumbers: true,
