@@ -25,6 +25,7 @@ import {
 import {ghcolors} from "react-syntax-highlighter/dist/cjs/styles/prism";
 import "codemirror/lib/codemirror.css";
 import "codemirror/theme/eclipse.css";
+import {css} from "@emotion/react";
 
 const isInBrowser =
   typeof window !== "undefined" && typeof window.navigator !== "undefined";
@@ -216,29 +217,49 @@ it('variabel seratus menyimpan nilai 100', function() {
           </Button>
         </Box>
         <Box height="calc(100vh - 75px)" width="50%">
-          <CodeMirror
-            onChange={(editor, data, value) => setCodeValue(value)}
-            editorDidMount={editor => editor.setSize("100%", "100%")}
-            options={{
-              theme: "eclipse",
-              lineNumbers: true,
-              showCursorWhenSelecting: true,
-              lineWrapping: true,
-              autofocus: true
-            }}
-          />
+          <Box
+            css={css`
+              height: 70%;
+
+              .react-codemirror2 {
+                height: 100%;
+              }
+            `}
+          >
+            <CodeMirror
+              onChange={(editor, data, value) => setCodeValue(value)}
+              editorDidMount={editor => editor.setSize("100%", "100%")}
+              options={{
+                theme: "eclipse",
+                lineNumbers: true,
+                showCursorWhenSelecting: true,
+                lineWrapping: true,
+                autofocus: true
+              }}
+            />
+          </Box>
           <Divider />
-          <CodeMirror
-            value={testCode}
-            editorDidMount={editor => editor.setSize("100%", "100%")}
-            options={{
-              theme: "eclipse",
-              lineNumbers: true,
-              showCursorWhenSelecting: true,
-              lineWrapping: true,
-              readOnly: "nocursor"
-            }}
-          />
+          <Box
+            css={css`
+              height: 30%;
+
+              .react-codemirror2 {
+                height: 100%;
+              }
+            `}
+          >
+            <CodeMirror
+              value={testCode}
+              editorDidMount={editor => editor.setSize("100%", "100%")}
+              options={{
+                theme: "eclipse",
+                lineNumbers: true,
+                showCursorWhenSelecting: true,
+                lineWrapping: true,
+                readOnly: "nocursor"
+              }}
+            />
+          </Box>
         </Box>
       </Flex>
       <iframe

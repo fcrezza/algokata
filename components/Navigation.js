@@ -36,10 +36,11 @@ export default function Navigation() {
   const router = useRouter();
   const [isModalOpen, setModalVisibility] = React.useState(false);
   // TODO: show different style and item when authenticated
-  const isLanding = router.pathname === "/";
+  const isLandingPage = router.pathname === "/";
+  const isAuthPage = router.pathname === "/auth";
 
   return (
-    <Container padding="0" maxWidth={isLanding ? "container.lg" : "full"}>
+    <Container padding="0" maxWidth={isLandingPage ? "container.lg" : "full"}>
       <Modal isOpen={isModalOpen} onClose={() => setModalVisibility(false)}>
         <ModalOverlay />
         <ModalContent>
@@ -59,7 +60,7 @@ export default function Navigation() {
         </ModalContent>
       </Modal>
       <Flex
-        paddingX={isLanding ? "4" : "6"}
+        paddingX={isLandingPage ? "4" : "6"}
         paddingY="4"
         justifyContent="space-between"
       >
@@ -81,14 +82,14 @@ export default function Navigation() {
             </LinkOverlay>
           </NextLink>
         </LinkBox>
-        {isLanding ? (
+        {isLandingPage && !isAuthPage ? (
           <Flex alignItems="center">
             <Link href="#" marginRight="12">
               Fitur
             </Link>
             <Link href="#">FAQ</Link>
           </Flex>
-        ) : (
+        ) : !isAuthPage ? (
           <Flex alignItems="center">
             <IconButton
               aria-label="join a class"
@@ -120,34 +121,28 @@ export default function Navigation() {
                 <PopoverContent>
                   <PopoverArrow />
                   <PopoverBody>
-                    <LinkBox>
-                      <NextLink href="/me" passHref>
-                        <LinkOverlay>
-                          <Flex alignItems="center" paddingY="2">
-                            <Avatar
-                              size="lg"
-                              loading="eager"
-                              name="anang fachreza"
-                              src="https://pbs.twimg.com/profile_images/1404532784933216261/LlgKDVoF_400x400.jpg"
-                              marginRight="4"
-                            />
-                            <Box>
-                              <Text
-                                color="gray.800"
-                                fontSize="md"
-                                fontWeight="600"
-                                marginBottom="1"
-                              >
-                                Anang Fachreza
-                              </Text>
-                              <Text color="gray.600" fontSize="sm">
-                                fachrezanang@gmail.com
-                              </Text>
-                            </Box>
-                          </Flex>
-                        </LinkOverlay>
-                      </NextLink>
-                    </LinkBox>
+                    <Flex alignItems="center" paddingY="2">
+                      <Avatar
+                        size="lg"
+                        loading="eager"
+                        name="anang fachreza"
+                        src="https://pbs.twimg.com/profile_images/1404532784933216261/LlgKDVoF_400x400.jpg"
+                        marginRight="4"
+                      />
+                      <Box>
+                        <Text
+                          color="gray.800"
+                          fontSize="md"
+                          fontWeight="600"
+                          marginBottom="1"
+                        >
+                          Anang Fachreza
+                        </Text>
+                        <Text color="gray.600" fontSize="sm">
+                          fachrezanang@gmail.com
+                        </Text>
+                      </Box>
+                    </Flex>
                     <Divider marginTop="3" marginBottom="4" />
                     <Button variant="outline" isFullWidth>
                       Keluar
@@ -157,9 +152,9 @@ export default function Navigation() {
               </Portal>
             </Popover>
           </Flex>
-        )}
+        ) : null}
       </Flex>
-      {!isLanding ? <Divider /> : null}
+      {!isLandingPage && !isAuthPage ? <Divider /> : null}
     </Container>
   );
 }

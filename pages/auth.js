@@ -17,11 +17,11 @@ export default function Auth() {
       >
         <Heading
           textTransform="capitalize"
-          fontSize="xx-large"
-          marginBottom="10"
+          fontSize="3xl"
+          marginBottom="8"
           color="gray.800"
         >
-          Beritahu kami siapa kamu
+          Siapakah anda?
         </Heading>
         <Button
           variant="solid"
@@ -30,7 +30,7 @@ export default function Auth() {
           marginBottom="4"
           isFullWidth
         >
-          Saya Seorang Pengajar
+          Pengajar
         </Button>
         <Button
           variant="outline"
@@ -39,7 +39,7 @@ export default function Auth() {
           marginBottom="4"
           isFullWidth
         >
-          Saya Seorang Siswa
+          Siswa
         </Button>
         <Text as="i" marginTop="4" color="gray.600" fontSize="sm">
           Catatan: pilihan ini tidak dapat dirubah

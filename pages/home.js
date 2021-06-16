@@ -63,6 +63,10 @@ export default function Home() {
                     padding="4"
                     height="180px"
                     backgroundColor="green.600"
+                    backgroundImage="assets/images/waves.svg"
+                    backgroundRepeat="no-repeat"
+                    backgroundPosition="right bottom"
+                    backgroundSize="contain"
                   >
                     <Heading
                       color="white"
