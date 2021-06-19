@@ -2,7 +2,6 @@ import React from "react";
 import Head from "next/head";
 import NextLink from "next/link";
 import {Box, Container, Flex, Heading, Text} from "@chakra-ui/layout";
-import {UnControlled as CodeMirror} from "react-codemirror2";
 import ReactMarkdown from "react-markdown";
 import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
 import {Button} from "@chakra-ui/button";
@@ -26,6 +25,14 @@ import {ghcolors} from "react-syntax-highlighter/dist/cjs/styles/prism";
 import "codemirror/lib/codemirror.css";
 import "codemirror/theme/eclipse.css";
 import {css} from "@emotion/react";
+import dynamic from "next/dynamic";
+
+const CodeMirror = dynamic(
+  () => import("react-codemirror2").then(mod => mod.UnControlled),
+  {
+    ssr: false
+  }
+);
 
 const isInBrowser =
   typeof window !== "undefined" && typeof window.navigator !== "undefined";

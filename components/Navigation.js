@@ -29,15 +29,24 @@ import {
   Input
 } from "@chakra-ui/react";
 import {MdAdd} from "react-icons/md";
+import nookies from "nookies";
+import firebase from "utils/firebase-client";
 
 import {Logo} from "components/Icons";
 
-export default function Navigation() {
+export default function Navigation(props) {
+  const {userFullname, userAvatar, userEmail} = props;
   const router = useRouter();
   const [isModalOpen, setModalVisibility] = React.useState(false);
   // TODO: show different style and item when authenticated
   const isLandingPage = router.pathname === "/";
   const isAuthPage = router.pathname === "/auth";
+
+  const handleLogout = async () => {
+    await firebase.auth().signOut();
+    nookies.destroy(null, "token");
+    router.push("/");
+  };
 
   return (
     <Container padding="0" maxWidth={isLandingPage ? "container.lg" : "full"}>
@@ -45,7 +54,7 @@ export default function Navigation() {
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Bergabung Ke Kelas</ModalHeader>
-          <ModalCloseButton />
+          <ModalCloseButton borderRadius="50%" />
           <ModalBody>
             <Text color="gray.600" marginBottom="4">
               Mintalah kode kelas kepada pengajar, lalu masukkan kode di sini.
@@ -110,8 +119,8 @@ export default function Navigation() {
                     <Avatar
                       size="sm"
                       loading="eager"
-                      name="anang fachreza"
-                      src="https://pbs.twimg.com/profile_images/1404532784933216261/LlgKDVoF_400x400.jpg"
+                      name={userFullname}
+                      src={userAvatar}
                     />
                   }
                   isRound
@@ -125,8 +134,8 @@ export default function Navigation() {
                       <Avatar
                         size="lg"
                         loading="eager"
-                        name="anang fachreza"
-                        src="https://pbs.twimg.com/profile_images/1404532784933216261/LlgKDVoF_400x400.jpg"
+                        name={userFullname}
+                        src={userAvatar}
                         marginRight="4"
                       />
                       <Box>
@@ -136,15 +145,19 @@ export default function Navigation() {
                           fontWeight="600"
                           marginBottom="1"
                         >
-                          Anang Fachreza
+                          {userFullname}
                         </Text>
                         <Text color="gray.600" fontSize="sm">
-                          fachrezanang@gmail.com
+                          {userEmail}
                         </Text>
                       </Box>
                     </Flex>
                     <Divider marginTop="3" marginBottom="4" />
-                    <Button variant="outline" isFullWidth>
+                    <Button
+                      onClick={handleLogout}
+                      variant="outline"
+                      isFullWidth
+                    >
                       Keluar
                     </Button>
                   </PopoverBody>

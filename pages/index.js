@@ -1,6 +1,5 @@
 import NextHead from "next/head";
 import NextLink from "next/link";
-import {Button} from "@chakra-ui/button";
 import {
   Box,
   Center,
@@ -18,43 +17,102 @@ import {
   AccordionIcon,
   AccordionItem,
   AccordionPanel,
+  Button,
   Link
 } from "@chakra-ui/react";
+import StyledFirebaseAuth from "react-firebaseui/StyledFirebaseAuth";
+import nookies from "nookies";
+import axios from "axios";
 
 import {Logo} from "components/Icons";
 import {Discussion, Editor, Feedback, Manage} from "components/Illustrations";
+import firebase from "utils/firebase-client";
+import admin from "utils/firebase-admin";
+import {useRouter} from "next/router";
+import Navigation from "components/Navigation";
 
-export default function Home() {
+export default function Home({user}) {
+  const router = useRouter();
+
+  const handleLogin = async res => {
+    try {
+      const {user, additionalUserInfo} = res;
+      const token = await user.getIdToken();
+      nookies.set(null, "token", token, {path: "/"});
+      const {role} = await axios.post("/api/auth", {
+        id: user.uid,
+        fullname: user.displayName,
+        email: user.email,
+        avatar: user.photoURL,
+        isNewUser: additionalUserInfo.isNewUser
+      });
+      if (role === null) {
+        router.push("/auth");
+      } else {
+        router.push("/home");
+      }
+      return false;
+    } catch (error) {
+      console.log("something went wrong: ", error);
+    }
+  };
+
   return (
     <>
+      <Navigation />
       <Container marginTop="16" maxWidth="container.lg">
         <NextHead>
           <title>
             Algokata - Belajar pemrograman dan struktur data secara interaktif.
           </title>
         </NextHead>
-        <Flex justifyContent="space-between" alignItems="center">
-          <Box maxWidth="container.md" marginX="auto" textAlign="center">
-            <Heading
-              as="h1"
-              color="gray.800"
-              size="2xl"
-              marginBottom="8"
-              textTransform="capitalize"
-              fontWeight="black"
-              lineHeight="normal"
+        <Box maxWidth="container.md" marginX="auto" textAlign="center">
+          <Heading
+            as="h1"
+            color="gray.800"
+            size="2xl"
+            marginBottom="8"
+            textTransform="capitalize"
+            fontWeight="black"
+            lineHeight="normal"
+          >
+            Belajar pemrograman dan struktur data secara interaktif.
+          </Heading>
+          <Text marginBottom="8" color="gray.600" fontSize="2xl">
+            Bergabung dengan ribuan pengajar dan siswa lain, belajar pemrograman
+            lebih menyenangkan dan menarik.
+          </Text>
+          {user !== null ? (
+            <Button
+              variant="outline"
+              colorScheme="green"
+              size="lg"
+              onClick={() => router.push("/home")}
             >
-              Belajar pemrograman dan struktur data secara interaktif.
-            </Heading>
-            <Text marginBottom="8" color="gray.600" fontSize="2xl">
-              Bergabung dengan ribuan pengajar dan siswa lain, belajar
-              pemrograman lebih menyenangkan dan menarik.
-            </Text>
-            <Button colorScheme="green" variant="outline" size="lg">
-              Lanjutkan Dengan Google →
+              Kembali Ke Halaman Utama
             </Button>
-          </Box>
-        </Flex>
+          ) : (
+            <StyledFirebaseAuth
+              uiConfig={{
+                signInFlow: "popup",
+                signInOptions: [
+                  {
+                    provider: firebase.auth.GoogleAuthProvider.PROVIDER_ID,
+                    fullLabel: "Login Dengan Google"
+                  },
+                  {
+                    provider: firebase.auth.GithubAuthProvider.PROVIDER_ID,
+                    fullLabel: "Login Dengan Github"
+                  }
+                ],
+                callbacks: {
+                  signInSuccessWithAuthResult: handleLogin
+                }
+              }}
+              firebaseAuth={firebase.auth()}
+            />
+          )}
+        </Box>
       </Container>
       <Container marginTop="36" maxWidth="container.lg">
         <Heading
@@ -221,4 +279,25 @@ function Footer() {
       </Flex>
     </Container>
   );
+}
+
+export async function getServerSideProps(ctx) {
+  try {
+    const cookies = nookies.get(ctx);
+    const {user_id} = await admin.auth().verifyIdToken(cookies.token);
+    let user = await admin.firestore().collection("users").doc(user_id).get();
+    user = user.data();
+
+    return {
+      props: {
+        user: user
+      }
+    };
+  } catch (err) {
+    return {
+      props: {
+        user: null
+      }
+    };
+  }
 }
