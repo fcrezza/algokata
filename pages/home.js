@@ -20,6 +20,7 @@ import useSWR from "swr";
 import {Umrella} from "components/Illustrations";
 import Navigation from "components/Navigation";
 import axios from "utils/axios";
+import {sendCookie, verifyIdentity} from "utils/server-helpers";
 
 // const classes = [
 //   {
@@ -50,7 +51,6 @@ export default function Home({user}) {
   const {data: classes, error} = useSWR("/api/classes", url =>
     axios.get(url).then(({data}) => data)
   );
-
   console.log({classes, error});
 
   return (
@@ -167,12 +167,16 @@ function LoadingSpinner() {
 
 export async function getServerSideProps(ctx) {
   try {
-    const cookies = nookies.get(ctx);
-    const {user_id} = await admin.auth().verifyIdToken(cookies.token);
-    let user = await admin.firestore().collection("users").doc(user_id).get();
-    user = user.data();
+    const {idToken, refreshToken} = nookies.get(ctx);
+    const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
+    let userData = await admin
+      .firestore()
+      .collection("users")
+      .doc(user.user_id)
+      .get();
+    userData = userData.data();
 
-    if (user.role === null) {
+    if (userData.role === null) {
       return {
         redirect: {
           permanent: false,
@@ -181,9 +185,13 @@ export async function getServerSideProps(ctx) {
       };
     }
 
+    if (newIdToken !== null) {
+      sendCookie(ctx, "idToken", newIdToken);
+    }
+
     return {
       props: {
-        user
+        user: userData
       }
     };
   } catch (err) {

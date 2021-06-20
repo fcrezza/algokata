@@ -1,5 +1,6 @@
 import NextHead from "next/head";
 import NextLink from "next/link";
+
 import {
   Box,
   Center,
@@ -18,7 +19,8 @@ import {
   AccordionItem,
   AccordionPanel,
   Button,
-  Link
+  Link,
+  useToast
 } from "@chakra-ui/react";
 import nookies from "nookies";
 import {useRouter} from "next/router";
@@ -30,23 +32,22 @@ import axios from "utils/axios";
 import admin from "utils/firebase-admin";
 import Navigation from "components/Navigation";
 import React from "react";
+import {sendCookie, verifyIdentity} from "utils/server-helpers";
 
 export default function Home({user}) {
   const router = useRouter();
+  const toast = useToast();
 
   const handleLogin = async () => {
     try {
       const {user, additionalUserInfo} = await firebase
         .auth()
         .signInWithPopup(new firebase.auth.GoogleAuthProvider());
-      const token = await user.getIdToken();
-      nookies.set(null, "token", token, {path: "/"});
-      const {role} = await axios.post("/api/auth", {
-        id: user.uid,
-        fullname: user.displayName,
-        email: user.email,
-        avatar: user.photoURL,
-        isNewUser: additionalUserInfo.isNewUser
+      const idToken = await user.getIdToken();
+      const {role} = await axios.post("/api/auth/login", {
+        isNewUser: additionalUserInfo.isNewUser,
+        idToken,
+        refreshToken: user.refreshToken
       });
       if (role === null) {
         router.push("/auth");
@@ -54,7 +55,11 @@ export default function Home({user}) {
         router.push("/home");
       }
     } catch (error) {
-      console.log("something went wrong: ", error);
+      toast({
+        title: `Upsss, gagal melakukan autentikasi`,
+        status: "error",
+        isClosable: true
+      });
     }
   };
 
@@ -262,14 +267,22 @@ function Footer() {
 
 export async function getServerSideProps(ctx) {
   try {
-    const cookies = nookies.get(ctx);
-    const {user_id} = await admin.auth().verifyIdToken(cookies.token);
-    let user = await admin.firestore().collection("users").doc(user_id).get();
-    user = user.data();
+    const {idToken, refreshToken} = nookies.get(ctx);
+    const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
+    let userData = await admin
+      .firestore()
+      .collection("users")
+      .doc(user.user_id)
+      .get();
+    userData = userData.data();
+
+    if (newIdToken !== null) {
+      sendCookie(ctx, "idToken", newIdToken);
+    }
 
     return {
       props: {
-        user: user
+        user: userData
       }
     };
   } catch (err) {

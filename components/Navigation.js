@@ -32,10 +32,9 @@ import {
   FormErrorMessage
 } from "@chakra-ui/react";
 import {MdAdd} from "react-icons/md";
-import nookies from "nookies";
-import firebase from "utils/firebase-client";
 
 import {Logo} from "components/Icons";
+import axios from "utils/axios";
 
 const MODAL_TYPE = {
   CLOSE: 0,
@@ -283,8 +282,7 @@ function AccountOptions({userEmail, userFullname, userAvatar}) {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await firebase.auth().signOut();
-    nookies.destroy(null, "token");
+    await axios.delete("api/auth/logout");
     router.push("/");
   };
 

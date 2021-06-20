@@ -1,18 +1,19 @@
 import {Button} from "@chakra-ui/button";
 import {Box, Container, Heading, Text} from "@chakra-ui/layout";
-import axios from "axios";
 import Navigation from "components/Navigation";
 import NextHead from "next/head";
 import {useRouter} from "next/router";
 import nookies from "nookies";
 
+import axios from "utils/axios";
 import admin from "utils/firebase-admin";
+import {sendCookie, verifyIdentity} from "utils/server-helpers";
 
-export default function Auth({user}) {
+export default function Auth() {
   const router = useRouter();
   const handleClick = async role => {
     try {
-      await axios.put("/api/auth", {...user, role});
+      await axios.post("/api/auth/role", {role});
       router.push("/home");
     } catch (error) {
       console.log("error during authentication", error);
@@ -72,12 +73,16 @@ export default function Auth({user}) {
 
 export async function getServerSideProps(ctx) {
   try {
-    const cookies = nookies.get(ctx);
-    const {user_id} = await admin.auth().verifyIdToken(cookies.token);
-    let user = await admin.firestore().collection("users").doc(user_id).get();
-    user = user.data();
+    const {idToken, refreshToken} = nookies.get(ctx);
+    const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
+    let userData = await admin
+      .firestore()
+      .collection("users")
+      .doc(user.user_id)
+      .get();
+    userData = userData.data();
 
-    if (user.role !== null) {
+    if (userData.role !== null) {
       return {
         redirect: {
           permanent: false,
@@ -86,10 +91,12 @@ export async function getServerSideProps(ctx) {
       };
     }
 
+    if (newIdToken !== null) {
+      sendCookie(ctx, "idToken", newIdToken);
+    }
+
     return {
-      props: {
-        user
-      }
+      props: {}
     };
   } catch (err) {
     return {
