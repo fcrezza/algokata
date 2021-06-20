@@ -20,23 +20,25 @@ import {
   Button,
   Link
 } from "@chakra-ui/react";
-import StyledFirebaseAuth from "react-firebaseui/StyledFirebaseAuth";
 import nookies from "nookies";
-import axios from "axios";
+import {useRouter} from "next/router";
 
 import {Logo} from "components/Icons";
 import {Discussion, Editor, Feedback, Manage} from "components/Illustrations";
 import firebase from "utils/firebase-client";
+import axios from "utils/axios";
 import admin from "utils/firebase-admin";
-import {useRouter} from "next/router";
 import Navigation from "components/Navigation";
+import React from "react";
 
 export default function Home({user}) {
   const router = useRouter();
 
-  const handleLogin = async res => {
+  const handleLogin = async () => {
     try {
-      const {user, additionalUserInfo} = res;
+      const {user, additionalUserInfo} = await firebase
+        .auth()
+        .signInWithPopup(new firebase.auth.GoogleAuthProvider());
       const token = await user.getIdToken();
       nookies.set(null, "token", token, {path: "/"});
       const {role} = await axios.post("/api/auth", {
@@ -51,7 +53,6 @@ export default function Home({user}) {
       } else {
         router.push("/home");
       }
-      return false;
     } catch (error) {
       console.log("something went wrong: ", error);
     }
@@ -82,36 +83,14 @@ export default function Home({user}) {
             Bergabung dengan ribuan pengajar dan siswa lain, belajar pemrograman
             lebih menyenangkan dan menarik.
           </Text>
-          {user !== null ? (
-            <Button
-              variant="outline"
-              colorScheme="green"
-              size="lg"
-              onClick={() => router.push("/home")}
-            >
-              Kembali Ke Halaman Utama
-            </Button>
-          ) : (
-            <StyledFirebaseAuth
-              uiConfig={{
-                signInFlow: "popup",
-                signInOptions: [
-                  {
-                    provider: firebase.auth.GoogleAuthProvider.PROVIDER_ID,
-                    fullLabel: "Login Dengan Google"
-                  },
-                  {
-                    provider: firebase.auth.GithubAuthProvider.PROVIDER_ID,
-                    fullLabel: "Login Dengan Github"
-                  }
-                ],
-                callbacks: {
-                  signInSuccessWithAuthResult: handleLogin
-                }
-              }}
-              firebaseAuth={firebase.auth()}
-            />
-          )}
+          <Button
+            variant="outline"
+            colorScheme="green"
+            size="lg"
+            onClick={user === null ? handleLogin : () => router.push("/home")}
+          >
+            {user === null ? "Login Dengan Google" : "Kembali Ke Halaman Utama"}
+          </Button>
         </Box>
       </Container>
       <Container marginTop="36" maxWidth="container.lg">
