@@ -9,7 +9,7 @@ export async function verifyIdentity(idToken, refreshToken) {
     return [user, null];
   } catch (error) {
     if (error.code === "auth/id-token-expired") {
-      const {id_token} = await axios({
+      const {data} = await axios({
         url: "https://securetoken.googleapis.com/v1/token?key=AIzaSyAIiwCmIs3yKs9HbxNr5fH1iSSeo5LEJLU",
         method: "POST",
         headers: {
@@ -20,9 +20,10 @@ export async function verifyIdentity(idToken, refreshToken) {
           refresh_token: refreshToken
         })
       });
-      const user = await admin.auth().verifyIdToken(id_token);
 
-      return [user, id_token];
+      const user = await admin.auth().verifyIdToken(data.id_token);
+
+      return [user, data.id_token];
     }
 
     throw {

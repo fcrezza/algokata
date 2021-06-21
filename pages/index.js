@@ -37,9 +37,11 @@ import {sendCookie, verifyIdentity} from "utils/server-helpers";
 export default function Home({user}) {
   const router = useRouter();
   const toast = useToast();
+  const [isClicked, setClickState] = React.useState(false);
 
   const handleLogin = async () => {
     try {
+      setClickState(true);
       const {user, additionalUserInfo} = await firebase
         .auth()
         .signInWithPopup(new firebase.auth.GoogleAuthProvider());
@@ -49,12 +51,14 @@ export default function Home({user}) {
         idToken,
         refreshToken: user.refreshToken
       });
+      setClickState(false);
       if (role === null) {
         router.push("/auth");
       } else {
         router.push("/home");
       }
     } catch (error) {
+      setClickState(false);
       toast({
         title: `Upsss, gagal melakukan autentikasi`,
         status: "error",
@@ -92,6 +96,9 @@ export default function Home({user}) {
             variant="outline"
             colorScheme="green"
             size="lg"
+            disabled={isClicked}
+            isLoading={isClicked}
+            loadingText="Login..."
             onClick={user === null ? handleLogin : () => router.push("/home")}
           >
             {user === null ? "Login Dengan Google" : "Kembali Ke Halaman Utama"}

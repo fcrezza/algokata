@@ -29,26 +29,33 @@ import {
   Input,
   FormControl,
   FormLabel,
-  FormErrorMessage
+  FormErrorMessage,
+  useDisclosure,
+  useToast
 } from "@chakra-ui/react";
 import {MdAdd} from "react-icons/md";
 
 import {Logo} from "components/Icons";
 import axios from "utils/axios";
 
-const MODAL_TYPE = {
-  CLOSE: 0,
-  CREATE_CLASS: 1,
-  JOIN_CLASS: 2
-};
-
-export default function Navigation({userFullname, userAvatar, userEmail}) {
+export default function Navigation({
+  userFullname,
+  userAvatar,
+  userEmail,
+  userRole
+}) {
   const router = useRouter();
+  const {isOpen, onOpen, onClose} = useDisclosure();
   const isLandingPage = router.pathname === "/";
   const isAuthPage = router.pathname === "/auth";
 
   return (
     <Container padding="0" maxWidth={isLandingPage ? "container.lg" : "full"}>
+      {userRole === "student" ? (
+        <JoinClassModal isOpen={isOpen} onClose={onClose} />
+      ) : (
+        <CreateClassModal isOpen={isOpen} onClose={onClose} />
+      )}
       <Flex
         paddingX={isLandingPage ? "4" : "6"}
         paddingY="4"
@@ -77,11 +84,23 @@ export default function Navigation({userFullname, userAvatar, userEmail}) {
         </LinkBox>
         {!isLandingPage && !isAuthPage ? (
           <Flex alignItems="center">
-            <ClassOptions />
+            <IconButton
+              aria-label={
+                userRole === "student" ? "Bergabung ke kelas" : "Buat Kelas"
+              }
+              variant="ghost"
+              size="md"
+              color="gray.800"
+              marginRight="6"
+              icon={<MdAdd size="24" />}
+              onClick={onOpen}
+              isRound
+            />
             <AccountOptions
               userAvatar={userAvatar}
               userEmail={userEmail}
               userFullname={userFullname}
+              userRole={userRole}
             />
           </Flex>
         ) : isLandingPage ? (
@@ -103,15 +122,22 @@ function CreateClassModal({isOpen, onClose}) {
   const [classDescription, setClassDescription] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState(null);
+  const router = useRouter();
 
-  const handleSubmit = () => {
-    setIsSubmitting(true);
-    setError(null);
-
-    setTimeout(() => {
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      const {data: cls} = await axios.post("/api/classes", {
+        className,
+        classDescription
+      });
       setIsSubmitting(false);
-      setError({message: "Upss, ada yang salah"});
-    }, 3000);
+      router.push(`/c/${cls.id}`);
+    } catch (error) {
+      setIsSubmitting(false);
+      setError({message: "Upss, gagal membuat kelas"});
+    }
   };
 
   const closeModal = () => {
@@ -122,11 +148,7 @@ function CreateClassModal({isOpen, onClose}) {
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={!isSubmitting ? closeModal : () => {}}
-      isCentered
-    >
+    <Modal isOpen={isOpen} onClose={!isSubmitting ? closeModal : () => {}}>
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>Buat Kelas</ModalHeader>
@@ -135,14 +157,14 @@ function CreateClassModal({isOpen, onClose}) {
           <FormControl id="class-name" isRequired>
             <FormLabel>Nama Kelas</FormLabel>
             <Input
-              onChange={e => setClassName(e.target.value.trim())}
+              onChange={e => setClassName(e.target.value)}
               value={className}
             />
           </FormControl>
           <FormControl id="class-description" marginTop="6">
             <FormLabel>Deskripsi Kelas (optional)</FormLabel>
             <Input
-              onChange={e => setClassDescription(e.target.value.trim())}
+              onChange={e => setClassDescription(e.target.value)}
               value={classDescription}
             />
           </FormControl>
@@ -155,6 +177,8 @@ function CreateClassModal({isOpen, onClose}) {
             colorScheme="green"
             isDisabled={className.length === 0 || isSubmitting}
             onClick={handleSubmit}
+            isLoading={isSubmitting}
+            loadingText="Membuat kelas..."
             isFullWidth
           >
             Buat
@@ -169,15 +193,23 @@ function JoinClassModal({isOpen, onClose}) {
   const [classCode, setClassCode] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState(null);
+  const router = useRouter();
 
-  const handleSubmit = () => {
-    setIsSubmitting(true);
-    setError(null);
-
-    setTimeout(() => {
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      const {data: cls} = await axios.get(`/api/classes/${classCode}/join`);
       setIsSubmitting(false);
-      setError({message: "Kelas tidak ditemukan"});
-    }, 3000);
+      router.push(`/c/${cls.id}`);
+    } catch (error) {
+      setIsSubmitting(false);
+      if (error.response) {
+        setError(error.response.data.error);
+      } else {
+        setError({message: "Upss, gagal melakukan operasi"});
+      }
+    }
   };
 
   const closeModal = () => {
@@ -187,11 +219,7 @@ function JoinClassModal({isOpen, onClose}) {
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={!isSubmitting ? closeModal : () => {}}
-      isCentered
-    >
+    <Modal isOpen={isOpen} onClose={!isSubmitting ? closeModal : () => {}}>
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>Bergabung Ke Kelas</ModalHeader>
@@ -215,6 +243,8 @@ function JoinClassModal({isOpen, onClose}) {
             colorScheme="green"
             isDisabled={classCode.length === 0 || isSubmitting}
             onClick={handleSubmit}
+            isLoading={isSubmitting}
+            loadingText="Bergabung ke kelas..."
             isFullWidth
           >
             Bergabung
@@ -225,65 +255,25 @@ function JoinClassModal({isOpen, onClose}) {
   );
 }
 
-function ClassOptions() {
-  const [modal, setModal] = React.useState(MODAL_TYPE.CLOSE);
-  const closeModal = () => setModal(MODAL_TYPE.CLOSE);
-
-  return (
-    <>
-      <CreateClassModal
-        isOpen={modal === MODAL_TYPE.CREATE_CLASS}
-        onClose={closeModal}
-      />
-      <JoinClassModal
-        isOpen={modal === MODAL_TYPE.JOIN_CLASS}
-        onClose={closeModal}
-      />
-      <Popover placement="bottom-end" isLazy>
-        <PopoverTrigger>
-          <IconButton
-            aria-label="opsi kelas"
-            variant="ghost"
-            size="md"
-            color="gray.800"
-            marginRight="6"
-            icon={<MdAdd size="24" />}
-            isRound
-          />
-        </PopoverTrigger>
-        <Portal>
-          <PopoverContent width="200px">
-            <PopoverArrow />
-            <PopoverBody>
-              <Button
-                onClick={() => setModal(MODAL_TYPE.CREATE_CLASS)}
-                variant="ghost"
-                isFullWidth
-              >
-                Buat Kelas
-              </Button>
-              <Divider marginY="1" />
-              <Button
-                onClick={() => setModal(MODAL_TYPE.JOIN_CLASS)}
-                variant="ghost"
-                isFullWidth
-              >
-                Gabung Kelas
-              </Button>
-            </PopoverBody>
-          </PopoverContent>
-        </Portal>
-      </Popover>
-    </>
-  );
-}
-
 function AccountOptions({userEmail, userFullname, userAvatar}) {
   const router = useRouter();
+  const toast = useToast();
+  const [isClicked, setClickState] = React.useState(false);
 
   const handleLogout = async () => {
-    await axios.delete("api/auth/logout");
-    router.push("/");
+    try {
+      setClickState(true);
+      await axios.delete("/api/auth/logout");
+      setClickState(false);
+      router.push("/");
+    } catch (error) {
+      setClickState(false);
+      toast({
+        status: "error",
+        title: `Upsss, gagal melakukan operasi`,
+        isClosable: true
+      });
+    }
   };
 
   return (
@@ -330,7 +320,14 @@ function AccountOptions({userEmail, userFullname, userAvatar}) {
               </Box>
             </Flex>
             <Divider marginTop="3" marginBottom="4" />
-            <Button onClick={handleLogout} variant="outline" isFullWidth>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              isDisabled={isClicked}
+              isLoading={isClicked}
+              loadingText="Logout..."
+              isFullWidth
+            >
               Keluar
             </Button>
           </PopoverBody>

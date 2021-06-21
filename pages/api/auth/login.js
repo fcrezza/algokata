@@ -29,8 +29,9 @@ export default async function handler(req, res) {
       sendCookie({res}, "refreshToken", refreshToken);
       res.json(user.data());
     } catch (error) {
-      console.log("Upss, something went wrong: ", error);
-      res.status(500).json({code: 500, message: "something went wrong"});
+      res
+        .status(500)
+        .json({error: {code: 500, message: "something went wrong"}});
     }
   } else {
     res.setHeader("Allow", ["POST"]);

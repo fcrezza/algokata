@@ -15,9 +15,9 @@ export default async function handler(req, res) {
       userData = userData.data();
 
       if (userData.role !== null) {
-        return res
-          .status(403)
-          .json({code: 403, message: "Role pengguna tidak dapat dirubah"});
+        return res.status(403).json({
+          error: {code: 403, message: "Role pengguna tidak dapat dirubah"}
+        });
       }
 
       await admin.firestore().collection("users").doc(user.user_id).update({
@@ -33,11 +33,15 @@ export default async function handler(req, res) {
       });
     } catch (error) {
       if (error.code === 401) {
-        res.status(error.code).json({code: error.code, message: error.message});
+        res
+          .status(error.code)
+          .json({error: {code: error.code, message: error.message}});
       }
 
       console.log("Upss, something went wrong: ", error);
-      res.status(500).json({code: 500, message: "something went wrong"});
+      res
+        .status(500)
+        .json({error: {code: 500, message: "something went wrong"}});
     }
   } else {
     res.setHeader("Allow", ["POST"]);

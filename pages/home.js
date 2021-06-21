@@ -15,43 +15,13 @@ import NextLink from "next/link";
 import Head from "next/head";
 import nookies from "nookies";
 import admin from "utils/firebase-admin";
-import useSWR from "swr";
 
 import {Umrella} from "components/Illustrations";
 import Navigation from "components/Navigation";
-import axios from "utils/axios";
 import {sendCookie, verifyIdentity} from "utils/server-helpers";
 
-// const classes = [
-//   {
-//     id: 1,
-//     title: "Dasar Pemrograman",
-//     author: "Peter Schweneiger",
-//     avatar:
-//       "https://images.unsplash.com/photo-1456327102063-fb5054efe647?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=750&q=80"
-//   },
-//   {
-//     id: 2,
-//     title: "Struktur Data dan Algoritma Dasar",
-//     author: "Emily Nadicova",
-//     avatar:
-//       "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=750&q=80"
-//   },
-//   {
-//     id: 3,
-//     title: "Pemrograman Berorientasi Objek",
-//     author: "David Mcmanaman",
-//     avatar:
-//       "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=334&q=80"
-//   }
-// ];
-
-export default function Home({user}) {
+export default function Home({user, clss}) {
   const {fullname, email, avatar, role} = user;
-  const {data: classes, error} = useSWR("/api/classes", url =>
-    axios.get(url).then(({data}) => data)
-  );
-  console.log({classes, error});
 
   return (
     <Flex flexDirection="column" width="100%" minHeight="100vh">
@@ -65,20 +35,20 @@ export default function Home({user}) {
         <Head>
           <title>Home - Algokata</title>
         </Head>
-        {classes?.length > 0 ? (
+        {clss?.length > 0 ? (
           <Wrap spacing="6">
-            {classes.map(({id, author, title, avatar}) => (
+            {clss.map(({id, teacher, name}) => (
               <ClassItem
                 key={id}
                 id={id}
-                name={title}
-                teacherFullname={author}
-                teacherAvatar={avatar}
+                name={name}
+                teacherFullname={teacher.fullname}
+                teacherAvatar={teacher.avatar}
               />
             ))}
           </Wrap>
-        ) : classes?.length === 0 ? (
-          <EmptyState />
+        ) : clss?.length === 0 ? (
+          <EmptyState userRole={role} />
         ) : (
           <LoadingSpinner />
         )}
@@ -94,7 +64,7 @@ function ClassItem({id, name, teacherFullname, teacherAvatar}) {
         boxShadow: "xl"
       }}
     >
-      <NextLink href={`#${id}`} passHref>
+      <NextLink href={`/c/${id}`} passHref>
         <LinkOverlay>
           <Box
             width="300px"
@@ -129,7 +99,7 @@ function ClassItem({id, name, teacherFullname, teacherAvatar}) {
   );
 }
 
-function EmptyState() {
+function EmptyState({userRole}) {
   return (
     <Flex
       flexDirection="column"
@@ -138,13 +108,10 @@ function EmptyState() {
       alignSelf="center"
     >
       <Umrella width="200" />
-      <Text
-        marginTop="6"
-        color="gray.600"
-        textAlign="center"
-        textTransform="capitalize"
-      >
-        Tidak ada kelas :)
+      <Text marginTop="6" color="gray.600" textAlign="center">
+        {userRole === "student"
+          ? "Kamu tidak bergabung dengan kelas apapun :)"
+          : "Kamu tidak mengajar kelas apapun :)"}
       </Text>
     </Flex>
   );
@@ -169,12 +136,8 @@ export async function getServerSideProps(ctx) {
   try {
     const {idToken, refreshToken} = nookies.get(ctx);
     const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
-    let userData = await admin
-      .firestore()
-      .collection("users")
-      .doc(user.user_id)
-      .get();
-    userData = userData.data();
+    const userRef = admin.firestore().collection("users").doc(user.user_id);
+    const userData = (await userRef.get()).data();
 
     if (userData.role === null) {
       return {
@@ -189,8 +152,12 @@ export async function getServerSideProps(ctx) {
       sendCookie(ctx, "idToken", newIdToken);
     }
 
+    let clss = (await userRef.collection("classes").get()).docs;
+    clss = clss.map(c => c.data());
+
     return {
       props: {
+        clss,
         user: userData
       }
     };
