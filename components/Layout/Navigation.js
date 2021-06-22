@@ -37,37 +37,34 @@ import {MdAdd} from "react-icons/md";
 
 import {Logo} from "components/Icons";
 import axios from "utils/axios";
+import {useAuth} from "utils/auth";
 
-export default function Navigation({
-  userFullname,
-  userAvatar,
-  userEmail,
-  userRole
-}) {
+export default function Navigation() {
+  const {user} = useAuth();
   const router = useRouter();
   const {isOpen, onOpen, onClose} = useDisclosure();
   const isLandingPage = router.pathname === "/";
   const isAuthPage = router.pathname === "/auth";
+  const isInClass =
+    router.pathname.startsWith("/c/") ||
+    router.pathname.startsWith("/d/") ||
+    router.pathname.startsWith("/m/");
 
   return (
     <Container padding="0" maxWidth={isLandingPage ? "container.lg" : "full"}>
-      {userRole === "student" ? (
+      {user.role === "student" ? (
         <JoinClassModal isOpen={isOpen} onClose={onClose} />
       ) : (
         <CreateClassModal isOpen={isOpen} onClose={onClose} />
       )}
-      <Flex
-        paddingX={isLandingPage ? "4" : "6"}
-        paddingY="4"
-        justifyContent="space-between"
-      >
+      <Flex paddingX={isLandingPage ? "4" : "6"} justifyContent="space-between">
         <LinkBox>
           <NextLink
             href={!isLandingPage && !isAuthPage ? "/home" : "/"}
             passHref
           >
             <LinkOverlay>
-              <Flex alignItems="center">
+              <Flex paddingY="4" alignItems="center">
                 <Logo width="35" height="35" />
                 <Text
                   textDecoration="none"
@@ -82,11 +79,18 @@ export default function Navigation({
             </LinkOverlay>
           </NextLink>
         </LinkBox>
+        {isInClass ? (
+          <Flex marginX="auto">
+            <ClassLink href={`/c/${router.query.id}`}>Linimasa</ClassLink>
+            <ClassLink href={`/d/${router.query.id}`}>Diskusi</ClassLink>
+            <ClassLink href={`/m/${router.query.id}`}>Anggota</ClassLink>
+          </Flex>
+        ) : null}
         {!isLandingPage && !isAuthPage ? (
           <Flex alignItems="center">
             <IconButton
               aria-label={
-                userRole === "student" ? "Bergabung ke kelas" : "Buat Kelas"
+                user.role === "student" ? "Bergabung ke kelas" : "Buat Kelas"
               }
               variant="ghost"
               size="md"
@@ -97,10 +101,10 @@ export default function Navigation({
               isRound
             />
             <AccountOptions
-              userAvatar={userAvatar}
-              userEmail={userEmail}
-              userFullname={userFullname}
-              userRole={userRole}
+              userAvatar={user.avatar}
+              userEmail={user.email}
+              userFullname={user.fullname}
+              userRole={user.role}
             />
           </Flex>
         ) : isLandingPage ? (
@@ -114,6 +118,35 @@ export default function Navigation({
       </Flex>
       {!isLandingPage && !isAuthPage ? <Divider /> : null}
     </Container>
+  );
+}
+
+function ClassLink({children, href}) {
+  const router = useRouter();
+  const isActive = router.asPath === href;
+
+  return (
+    <LinkBox
+      _hover={{
+        backgroundColor: !isActive ? "gray.50" : null
+      }}
+      backgroundColor={isActive ? "green.50" : null}
+    >
+      <NextLink href={href} passHref>
+        <LinkOverlay>
+          <Flex
+            color={isActive ? "green.600" : "gray.600"}
+            fontWeight="medium"
+            justifyContent="center"
+            alignItems="center"
+            height="100%"
+            paddingX="5"
+          >
+            {children}
+          </Flex>
+        </LinkOverlay>
+      </NextLink>
+    </LinkBox>
   );
 }
 
@@ -178,8 +211,6 @@ function CreateClassModal({isOpen, onClose}) {
             colorScheme="green"
             isDisabled={className.length === 0 || isSubmitting}
             onClick={handleSubmit}
-            isLoading={isSubmitting}
-            loadingText="Membuat kelas..."
             isFullWidth
           >
             Buat
@@ -245,8 +276,6 @@ function JoinClassModal({isOpen, onClose}) {
             colorScheme="green"
             isDisabled={classCode.length === 0 || isSubmitting}
             onClick={handleSubmit}
-            isLoading={isSubmitting}
-            loadingText="Bergabung ke kelas..."
             isFullWidth
           >
             Bergabung
@@ -258,6 +287,7 @@ function JoinClassModal({isOpen, onClose}) {
 }
 
 function AccountOptions({userEmail, userFullname, userAvatar}) {
+  const {logout} = useAuth();
   const router = useRouter();
   const toast = useToast();
   const [isClicked, setClickState] = React.useState(false);
@@ -265,7 +295,7 @@ function AccountOptions({userEmail, userFullname, userAvatar}) {
   const handleLogout = async () => {
     try {
       setClickState(true);
-      await axios.delete("/api/auth/logout");
+      await logout();
       setClickState(false);
       router.push("/");
     } catch (error) {
@@ -326,8 +356,6 @@ function AccountOptions({userEmail, userFullname, userAvatar}) {
               onClick={handleLogout}
               variant="outline"
               isDisabled={isClicked}
-              isLoading={isClicked}
-              loadingText="Logout..."
               isFullWidth
             >
               Keluar

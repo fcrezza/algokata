@@ -1,4 +1,4 @@
-import NextHead from "next/head";
+import React from "react";
 import NextLink from "next/link";
 
 import {
@@ -22,37 +22,26 @@ import {
   Link,
   useToast
 } from "@chakra-ui/react";
-import nookies from "nookies";
 import {useRouter} from "next/router";
 
 import {Logo} from "components/Icons";
 import {Discussion, Editor, Feedback, Manage} from "components/Illustrations";
-import firebase from "utils/firebase-client";
-import axios from "utils/axios";
-import admin from "utils/firebase-admin";
-import Navigation from "components/Navigation";
-import React from "react";
-import {sendCookie, verifyIdentity} from "utils/server-helpers";
+import {useAuth} from "utils/auth";
+import Head from "components/Head";
 
-export default function Home({user}) {
+export default function Home() {
   const router = useRouter();
   const toast = useToast();
+  const {googleLogin, isAuth} = useAuth();
   const [isClicked, setClickState] = React.useState(false);
 
   const handleLogin = async () => {
     try {
       setClickState(true);
-      const {user, additionalUserInfo} = await firebase
-        .auth()
-        .signInWithPopup(new firebase.auth.GoogleAuthProvider());
-      const idToken = await user.getIdToken();
-      const {role} = await axios.post("/api/auth/login", {
-        isNewUser: additionalUserInfo.isNewUser,
-        idToken,
-        refreshToken: user.refreshToken
-      });
+      const userData = await googleLogin();
       setClickState(false);
-      if (role === null) {
+
+      if (userData.role === null) {
         router.push("/auth");
       } else {
         router.push("/home");
@@ -69,13 +58,8 @@ export default function Home({user}) {
 
   return (
     <>
-      <Navigation />
       <Container marginTop="16" maxWidth="container.lg">
-        <NextHead>
-          <title>
-            Algokata - Belajar pemrograman dan struktur data secara interaktif.
-          </title>
-        </NextHead>
+        <Head title="Algokata - Belajar pemrograman dan struktur data secara interaktif." />
         <Box maxWidth="container.md" marginX="auto" textAlign="center">
           <Heading
             as="h1"
@@ -97,11 +81,9 @@ export default function Home({user}) {
             colorScheme="green"
             size="lg"
             disabled={isClicked}
-            isLoading={isClicked}
-            loadingText="Login..."
-            onClick={user === null ? handleLogin : () => router.push("/home")}
+            onClick={isAuth ? () => router.push("/home") : handleLogin}
           >
-            {user === null ? "Login Dengan Google" : "Kembali Ke Halaman Utama"}
+            {isAuth ? "Kembali Ke Halaman Utama" : "Login Dengan Google"}
           </Button>
         </Box>
       </Container>
@@ -270,33 +252,4 @@ function Footer() {
       </Flex>
     </Container>
   );
-}
-
-export async function getServerSideProps(ctx) {
-  try {
-    const {idToken, refreshToken} = nookies.get(ctx);
-    const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
-    let userData = await admin
-      .firestore()
-      .collection("users")
-      .doc(user.user_id)
-      .get();
-    userData = userData.data();
-
-    if (newIdToken !== null) {
-      sendCookie(ctx, "idToken", newIdToken);
-    }
-
-    return {
-      props: {
-        user: userData
-      }
-    };
-  } catch (err) {
-    return {
-      props: {
-        user: null
-      }
-    };
-  }
 }

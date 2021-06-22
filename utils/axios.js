@@ -1,7 +1,7 @@
 import axios from "axios";
 
-// const baseUrl = "http://localhost:8080";
-
-export default axios.create({
+const custom = axios.create({
   withCredentials: true
 });
+
+export default custom;

@@ -9,51 +9,53 @@ import {
   LinkOverlay,
   LinkBox,
   Flex,
-  Spinner
+  Button
 } from "@chakra-ui/react";
 import NextLink from "next/link";
-import Head from "next/head";
-import nookies from "nookies";
-import admin from "utils/firebase-admin";
+import Head from "components/Head";
 
 import {Umrella} from "components/Illustrations";
-import Navigation from "components/Navigation";
-import {sendCookie, verifyIdentity} from "utils/server-helpers";
+import {useAuth} from "utils/auth";
+import useSWR from "swr";
+import {Loader} from "components/Loader";
+import {withProtectedRoute} from "utils/routes";
 
-export default function Home({user, clss}) {
-  const {fullname, email, avatar, role} = user;
+function Home() {
+  const {user} = useAuth();
+  const {data: clss, error, mutate} = useSWR(`/api/users/${user.id}/classes`);
 
   return (
-    <Flex flexDirection="column" width="100%" minHeight="100vh">
-      <Navigation
-        userFullname={fullname}
-        userEmail={email}
-        userAvatar={avatar}
-        userRole={role}
-      />
-      <Container padding="6" display="flex" flex="1" maxWidth="full">
-        <Head>
-          <title>Home - Algokata</title>
-        </Head>
-        {clss?.length > 0 ? (
-          <Wrap spacing="6">
-            {clss.map(({id, teacher, name}) => (
-              <ClassItem
-                key={id}
-                id={id}
-                name={name}
-                teacherFullname={teacher.fullname}
-                teacherAvatar={teacher.avatar}
-              />
-            ))}
-          </Wrap>
-        ) : clss?.length === 0 ? (
-          <EmptyState userRole={role} />
-        ) : (
-          <LoadingSpinner />
-        )}
-      </Container>
-    </Flex>
+    <Container padding="6" display="flex" flex="1" maxWidth="full">
+      <Head title={`Home - ${user.fullname}`} />
+      {!clss && error ? (
+        <Box alignSelf="center" marginX="auto" textAlign="center">
+          <Text>Upsss, Gagal memuat data</Text>
+          <Button
+            marginTop="4"
+            variant="ghost"
+            colorScheme="green"
+            onClick={() => mutate(null)}
+          >
+            Coba lagi
+          </Button>
+        </Box>
+      ) : null}
+      {clss?.length > 0 ? (
+        <Wrap spacing="6">
+          {clss.map(({id, teacher, name}) => (
+            <ClassItem
+              key={id}
+              id={id}
+              name={name}
+              teacherFullname={teacher.fullname}
+              teacherAvatar={teacher.avatar}
+            />
+          ))}
+        </Wrap>
+      ) : null}
+      {clss?.length === 0 ? <EmptyState userRole={user.role} /> : null}
+      {!clss && !error ? <Loader /> : null}
+    </Container>
   );
 }
 
@@ -74,7 +76,7 @@ function ClassItem({id, name, teacherFullname, teacherAvatar}) {
             padding="4"
             height="180px"
             backgroundColor="green.600"
-            backgroundImage="assets/images/waves.svg"
+            backgroundImage="/assets/images/waves.svg"
             backgroundRepeat="no-repeat"
             backgroundPosition="right bottom"
             backgroundSize="contain"
@@ -117,56 +119,4 @@ function EmptyState({userRole}) {
   );
 }
 
-function LoadingSpinner() {
-  return (
-    <Box alignSelf="center" marginX="auto">
-      <Spinner
-        color="green.600"
-        emptyColor="gray.200"
-        size="lg"
-        speed="0.85s"
-        thickness="4px"
-        label="Loading"
-      />
-    </Box>
-  );
-}
-
-export async function getServerSideProps(ctx) {
-  try {
-    const {idToken, refreshToken} = nookies.get(ctx);
-    const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
-    const userRef = admin.firestore().collection("users").doc(user.user_id);
-    const userData = (await userRef.get()).data();
-
-    if (userData.role === null) {
-      return {
-        redirect: {
-          permanent: false,
-          destination: "/auth"
-        }
-      };
-    }
-
-    if (newIdToken !== null) {
-      sendCookie(ctx, "idToken", newIdToken);
-    }
-
-    let clss = (await userRef.collection("classes").get()).docs;
-    clss = clss.map(c => c.data());
-
-    return {
-      props: {
-        clss,
-        user: userData
-      }
-    };
-  } catch (err) {
-    return {
-      redirect: {
-        permanent: false,
-        destination: "/"
-      }
-    };
-  }
-}
+export default withProtectedRoute(Home);

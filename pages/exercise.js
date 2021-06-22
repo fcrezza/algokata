@@ -151,7 +151,7 @@ export default function Exercise() {
               Reset Editor
             </AlertDialogHeader>
             <AlertDialogBody>
-              Apakah kamu yakin ingin mereset kode editor?s
+              Apakah kamu yakin ingin mereset kode editor?
             </AlertDialogBody>
             <AlertDialogFooter>
               <Button ref={cancelRef} onClick={() => setClickReset(false)}>
