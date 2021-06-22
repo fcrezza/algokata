@@ -19,7 +19,13 @@ import {
   ListItem,
   Breadcrumb,
   BreadcrumbItem,
-  BreadcrumbLink
+  BreadcrumbLink,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay
 } from "@chakra-ui/react";
 import {ghcolors} from "react-syntax-highlighter/dist/cjs/styles/prism";
 import "codemirror/lib/codemirror.css";
@@ -28,7 +34,7 @@ import {css} from "@emotion/react";
 import dynamic from "next/dynamic";
 
 const CodeMirror = dynamic(
-  () => import("react-codemirror2").then(mod => mod.UnControlled),
+  () => import("react-codemirror2").then(mod => mod.Controlled),
   {
     ssr: false
   }
@@ -74,46 +80,52 @@ const components = {
   }
 };
 
+const mkdown = `
+Ketika kalian mendengar istilah variabel dalam pemrograman, bayangkan sebuah variabel merupakan ember yang dapat menyimpan nilai. Dalam bahasa pemrograman nilai ini bisa memiliki tipe seperti angka, string/text, function, array, object dan lain lain.
+
+Potongan kode berikut merupakan cara mendefinisikan variabel dalam javascript:
+
+~~~js
+var angka = 1;
+~~~
+
+Pada contoh kode diatas kita membuat variabel bernama angka dengan keyword \`var\` dan menyimpan nilai 1 pada variabel tersebut.
+
+### Giliran kamu!
+
+Pada editor di sebelah kanan buat variabel dengan nama \`seratus\` dan simpan nilai 100 ke variabel tersebut.
+`;
+
+const testCode = `it('variabel seratus memiliki tipe data number', function() {
+  assert.isNumber(seratus);
+});
+
+it('variabel seratus menyimpan nilai 100', function() {
+  assert.equal(seratus, 100);
+});
+`;
+
 export default function Exercise() {
   const [codeValue, setCodeValue] = React.useState("");
   const [result, setResult] = React.useState(null);
   const iframeRef = React.useRef();
-
-  const testCode = `it('variabel seratus memiliki tipe data number', function() {
-    assert.isNumber(seratus);
-});
-
-it('variabel seratus menyimpan nilai 100', function() {
-    assert.equal(seratus, 100);
-});
-`;
+  const [isSubmitting, setSubmitState] = React.useState(false);
+  const [isClickReset, setClickReset] = React.useState(false);
+  const cancelRef = React.useRef();
 
   const handleRun = () => {
+    setSubmitState(true);
     iframeRef.current.contentWindow.postMessage(
       `${codeValue}\n\n${testCode}`,
       process.env.NEXT_PUBLIC_IFRAME_ORIGIN
     );
   };
 
-  const mkdown = `
-  Ketika kalian mendengar istilah variabel dalam pemrograman, bayangkan sebuah variabel merupakan ember yang dapat menyimpan nilai. Dalam bahasa pemrograman nilai ini bisa memiliki tipe seperti angka, string/text, function, array, object dan lain lain.
-
-  Potongan kode berikut merupakan cara mendefinisikan variabel dalam javascript:
-
-  ~~~js
-  var angka = 1;
-  ~~~
-
-  Pada contoh kode diatas kita membuat variabel bernama angka dengan keyword \`var\` dan menyimpan nilai 1 pada variabel tersebut.
-
-  ### Giliran kamu!
-
-  Pada editor di sebelah kanan buat variabel dengan nama \`seratus\` dan simpan nilai 100 ke variabel tersebut.
-  `;
-
   React.useEffect(() => {
+    // TODO: handle when error? to prevent submitting state always true
     const messageHandler = ({data, origin}) => {
       if (origin === process.env.NEXT_PUBLIC_IFRAME_ORIGIN) {
+        setSubmitState(false);
         setResult(data);
       }
     };
@@ -128,6 +140,37 @@ it('variabel seratus menyimpan nilai 100', function() {
       <Head>
         <title>Exercise - Dasar Javascript: Deklarasi Variabel</title>
       </Head>
+      <AlertDialog
+        isOpen={isClickReset}
+        leastDestructiveRef={cancelRef}
+        onClose={() => setClickReset(false)}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Reset Editor
+            </AlertDialogHeader>
+            <AlertDialogBody>
+              Apakah kamu yakin ingin mereset kode editor?s
+            </AlertDialogBody>
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={() => setClickReset(false)}>
+                Batal
+              </Button>
+              <Button
+                colorScheme="green"
+                onClick={() => {
+                  setCodeValue("");
+                  setClickReset(false);
+                }}
+                ml={3}
+              >
+                Reset
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
       <Modal isOpen={result !== null} onClose={() => setResult(null)}>
         <ModalOverlay />
         <ModalContent>
@@ -198,8 +241,11 @@ it('variabel seratus menyimpan nilai 100', function() {
             colorScheme="green"
             size="lg"
             marginBottom="3"
-            isFullWidth
             onClick={handleRun}
+            isLoading={isSubmitting}
+            loadingText="Menjalankan kode..."
+            isDisabled={isSubmitting}
+            isFullWidth
           >
             Jalankan Kode
           </Button>
@@ -209,7 +255,7 @@ it('variabel seratus menyimpan nilai 100', function() {
             size="lg"
             marginBottom="3"
             isFullWidth
-            onClick={() => setCodeValue("")}
+            onClick={() => setClickReset(true)}
           >
             Reset Kode Editor
           </Button>
@@ -234,7 +280,8 @@ it('variabel seratus menyimpan nilai 100', function() {
             `}
           >
             <CodeMirror
-              onChange={(editor, data, value) => setCodeValue(value)}
+              onBeforeChange={(editor, data, value) => setCodeValue(value)}
+              value={codeValue}
               editorDidMount={editor => editor.setSize("100%", "100%")}
               options={{
                 theme: "eclipse",
