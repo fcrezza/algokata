@@ -30,7 +30,10 @@ export default function ClassPage({user, cls}) {
             <Heading marginBottom="2" as="h1" fontSize="3xl" color="gray.800">
               {cls.name}
             </Heading>
-            <Text fontSize="lg" color="gray.600">
+            <Text fontSize="lg" color="gray.700">
+              {cls.description}
+            </Text>
+            <Text fontSize="md" color="gray.600">
               Hai {user.fullname}, Kamu adalah{" "}
               {user.id === cls.teacher.id ? "Pengajar" : "Murid"} di kelas ini
             </Text>
@@ -76,11 +79,7 @@ export async function getServerSideProps(ctx) {
       };
     }
 
-    const cls = await admin
-      .firestore()
-      .collection("classes")
-      .doc(idClass)
-      .get();
+    const cls = await userRef.collection("classes").doc(idClass).get();
 
     if (newIdToken !== null) {
       sendCookie(ctx, "idToken", newIdToken);

@@ -133,6 +133,7 @@ function CreateClassModal({isOpen, onClose}) {
         classDescription
       });
       setIsSubmitting(false);
+      onClose();
       router.push(`/c/${cls.id}`);
     } catch (error) {
       setIsSubmitting(false);
@@ -201,6 +202,7 @@ function JoinClassModal({isOpen, onClose}) {
       setError(null);
       const {data: cls} = await axios.get(`/api/classes/${classCode}/join`);
       setIsSubmitting(false);
+      onClose();
       router.push(`/c/${cls.id}`);
     } catch (error) {
       setIsSubmitting(false);

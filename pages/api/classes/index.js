@@ -27,7 +27,7 @@ export default async function handler(req, res) {
         t.create(classesRef, {
           id: classesRef.id,
           name: className,
-          desciption: classDescription,
+          description: classDescription,
           teacher: {
             id: userData.id,
             fullname: userData.fullname,
@@ -39,6 +39,8 @@ export default async function handler(req, res) {
         t.create(userClassRef, {
           id: classesRef.id,
           name: className,
+          description: classDescription,
+          isTeacher: true,
           teacher: {
             id: userData.id,
             fullname: userData.fullname,
