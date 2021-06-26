@@ -32,6 +32,7 @@ import "codemirror/lib/codemirror.css";
 import "codemirror/theme/eclipse.css";
 import {css} from "@emotion/react";
 import dynamic from "next/dynamic";
+import {withProtectedRoute} from "utils/routes";
 
 const CodeMirror = dynamic(
   () => import("react-codemirror2").then(mod => mod.Controlled),
@@ -105,7 +106,7 @@ it('variabel seratus menyimpan nilai 100', function() {
 });
 `;
 
-export default function Exercise() {
+function TaskItemPage() {
   const [codeValue, setCodeValue] = React.useState("");
   const [result, setResult] = React.useState(null);
   const iframeRef = React.useRef();
@@ -138,7 +139,7 @@ export default function Exercise() {
   return (
     <Container padding="0" maxWidth="full">
       <Head>
-        <title>Exercise - Dasar Javascript: Deklarasi Variabel</title>
+        <title>Deklarasi Variabel</title>
       </Head>
       <AlertDialog
         isOpen={isClickReset}
@@ -182,14 +183,23 @@ export default function Exercise() {
           <ModalCloseButton />
           <ModalBody>
             <UnorderedList>
-              {result?.tests.map((test, idx) => (
-                <ListItem
-                  key={idx}
-                  color={test.state === "passed" ? "green.400" : "red.400"}
-                >
-                  {test.title}
-                </ListItem>
-              ))}
+              {result?.result.map(r => {
+                if (r.type === "test") {
+                  return (
+                    <ListItem
+                      key={r.id}
+                      color={r.state === "passed" ? "green.400" : "red.400"}
+                    >
+                      {r.title}
+                      {r.state === "failed" ? (
+                        <Text fontSize="sm" color="gray.600">
+                          Error: {r.error}
+                        </Text>
+                      ) : null}
+                    </ListItem>
+                  );
+                }
+              })}
             </UnorderedList>
           </ModalBody>
           <ModalFooter>
@@ -217,7 +227,7 @@ export default function Exercise() {
             <BreadcrumbItem>
               <NextLink href="#" passHref>
                 <BreadcrumbLink color="green.500">
-                  Pemrograman Dasar
+                  Dasar Pemrograman
                 </BreadcrumbLink>
               </NextLink>
             </BreadcrumbItem>
@@ -225,13 +235,13 @@ export default function Exercise() {
             <BreadcrumbItem isCurrentPage>
               <NextLink href="#" passHref>
                 <BreadcrumbLink color="green.500">
-                  Dasar JavaScript: Deklarasi Variabel
+                  Pertemuan 1: Tipe data dan variabel
                 </BreadcrumbLink>
               </NextLink>
             </BreadcrumbItem>
           </Breadcrumb>
           <Heading as="h3" color="gray.800" fontSize="3xl">
-            Dasar JavaScript: Deklarasi Variabel
+            Deklarasi Variabel
           </Heading>
           <Box marginY="4">
             <ReactMarkdown components={components}>{mkdown}</ReactMarkdown>
@@ -242,8 +252,6 @@ export default function Exercise() {
             size="lg"
             marginBottom="3"
             onClick={handleRun}
-            isLoading={isSubmitting}
-            loadingText="Menjalankan kode..."
             isDisabled={isSubmitting}
             isFullWidth
           >
@@ -325,3 +333,5 @@ export default function Exercise() {
     </Container>
   );
 }
+
+export default withProtectedRoute(TaskItemPage);

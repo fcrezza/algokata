@@ -49,7 +49,7 @@ const MODAL_TYPE = {
 
 function ClassPage() {
   const router = useRouter();
-  const {data: cls, error, mutate} = useSWR(`/api/classes/${router.query.id}`);
+  const {data: cls, error, mutate} = useSWR(`/api/classes/${router.query.cid}`);
   const [modal, setModal] = React.useState(MODAL_TYPE.NONE);
 
   const onClose = () => {
@@ -217,7 +217,7 @@ function EditClassModal({isOpen, onClose, defaultName, defaultDescription}) {
 
   const handleSubmit = async () => {
     try {
-      const url = `/api/classes/${router.query.id}`;
+      const url = `/api/classes/${router.query.cid}`;
       setIsSubmitting(true);
       setError(null);
       await axios.put(url, {
@@ -297,7 +297,7 @@ function CreateTaskModal({isOpen, onClose}) {
     try {
       setIsSubmitting(true);
       setError(null);
-      await axios.post(`/api/classes/${router.query.id}/tasks`, {
+      await axios.post(`/api/classes/${router.query.cid}/tasks`, {
         taskName,
         taskDescription
       });
@@ -362,7 +362,7 @@ function AnnouncementCreator({isOpen, onClose}) {
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
-      await axios.post(`/api/classes/${router.query.id}/announcements`, {
+      await axios.post(`/api/classes/${router.query.cid}/announcements`, {
         title,
         message
       });

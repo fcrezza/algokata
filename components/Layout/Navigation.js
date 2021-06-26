@@ -81,9 +81,9 @@ export default function Navigation() {
         </LinkBox>
         {isInClass ? (
           <Flex marginX="auto">
-            <ClassLink href={`/c/${router.query.id}`}>Linimasa</ClassLink>
-            <ClassLink href={`/d/${router.query.id}`}>Diskusi</ClassLink>
-            <ClassLink href={`/m/${router.query.id}`}>Anggota</ClassLink>
+            <ClassLink href={`/c/${router.query.cid}`}>Linimasa</ClassLink>
+            <ClassLink href={`/d/${router.query.cid}`}>Diskusi</ClassLink>
+            <ClassLink href={`/m/${router.query.cid}`}>Anggota</ClassLink>
           </Flex>
         ) : null}
         {!isLandingPage && !isAuthPage ? (
