@@ -22,24 +22,34 @@ async function getHandler(req, res) {
     const {id: idClass} = req.query;
     const {idToken, refreshToken} = req.cookies;
     const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
-    const cls = await admin
-      .firestore()
-      .collection("users")
-      .doc(user.user_id)
-      .collection("classes")
-      .doc(idClass)
-      .get();
-
-    if (newIdToken !== null) {
-      sendCookie({res}, "idToken", newIdToken);
-    }
+    const classRef = admin.firestore().collection("classes").doc(idClass);
+    const cls = await classRef.get();
 
     if (!cls.exists) {
       return res.json({});
     }
 
-    res.json(cls.data());
+    const {teacher} = cls.data();
+    let classStudents = await classRef.collection("students").get();
+    let isInClass = teacher.id === user.user_id;
+    classStudents = classStudents.docs.map(s => {
+      const student = s.data();
+
+      if (student.id === user.user_id) {
+        isInClass = true;
+      }
+
+      return student;
+    });
+
+    if (newIdToken !== null) {
+      sendCookie({res}, "idToken", newIdToken);
+    }
+
+    const responseData = isInClass ? {teacher, students: classStudents} : null;
+    res.json(responseData);
   } catch (error) {
+    console.log(error);
     const errorData = new HTTPInternalServerError(
       "Upsss ada kesalahan saat memproses request"
     );
