@@ -208,10 +208,10 @@ function EditClassModal({isOpen, onClose, defaultName, defaultDescription}) {
   const isSame =
     className === defaultName && classDescription === defaultDescription;
 
-  const closeModal = () => {
+  const closeModal = (name = defaultName, description = defaultDescription) => {
     setError(null);
-    setClassName(defaultName);
-    setClassDescription(defaultDescription);
+    setClassName(name);
+    setClassDescription(description);
     onClose();
   };
 
@@ -220,13 +220,13 @@ function EditClassModal({isOpen, onClose, defaultName, defaultDescription}) {
       const url = `/api/classes/${router.query.cid}`;
       setIsSubmitting(true);
       setError(null);
-      await axios.put(url, {
+      const {data: newClassData} = await axios.put(url, {
         className,
         classDescription
       });
-      await mutate(url);
+      await mutate(url, newClassData, false);
       setIsSubmitting(false);
-      closeModal();
+      closeModal(newClassData.name, newClassData.description);
     } catch (error) {
       setIsSubmitting(false);
       setError({message: "Upss, gagal menyimpan perubahan"});
