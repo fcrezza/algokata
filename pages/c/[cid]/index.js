@@ -30,7 +30,14 @@ import {
   Portal,
   CloseButton,
   Textarea,
-  useToast
+  useToast,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  useDisclosure
 } from "@chakra-ui/react";
 import {BiTask, BiInfoCircle, BiTrash, BiChevronDown} from "react-icons/bi";
 
@@ -39,6 +46,7 @@ import Head from "components/Head";
 import {Loader} from "components/Loader";
 import {withProtectedRoute} from "utils/routes";
 import axios from "axios";
+import {useAuth} from "utils/auth";
 
 const MODAL_TYPE = {
   NONE: 0,
@@ -51,6 +59,11 @@ function ClassPage() {
   const router = useRouter();
   const {data: cls, error, mutate} = useSWR(`/api/classes/${router.query.cid}`);
   const [modal, setModal] = React.useState(MODAL_TYPE.NONE);
+  const {
+    isOpen: isPromptOpen,
+    onOpen: onPromptOpen,
+    onClose: onPromptClose
+  } = useDisclosure();
 
   const onClose = () => {
     setModal(MODAL_TYPE.NONE);
@@ -80,20 +93,26 @@ function ClassPage() {
       ) : null}
       {cls && Object.keys(cls).length > 0 ? (
         <React.Fragment>
-          <EditClassModal
-            isOpen={modal === MODAL_TYPE.SETTINGS}
-            onClose={onClose}
-            defaultName={cls.name}
-            defaultDescription={cls.description}
-          />
-          <CreateTaskModal
-            isOpen={modal === MODAL_TYPE.TASK}
-            onClose={onClose}
-          />
-          <AnnouncementCreator
-            isOpen={modal === MODAL_TYPE.ANNOUNCEMENT}
-            onClose={onClose}
-          />
+          {cls.isTeacher ? (
+            <React.Fragment>
+              <EditClassModal
+                isOpen={modal === MODAL_TYPE.SETTINGS}
+                onClose={onClose}
+                defaultName={cls.name}
+                defaultDescription={cls.description}
+              />
+              <CreateTaskModal
+                isOpen={modal === MODAL_TYPE.TASK}
+                onClose={onClose}
+              />
+              <AnnouncementCreator
+                isOpen={modal === MODAL_TYPE.ANNOUNCEMENT}
+                onClose={onClose}
+              />
+            </React.Fragment>
+          ) : (
+            <ConfirmationPrompt isOpen={isPromptOpen} onClose={onPromptClose} />
+          )}
           <Box
             padding="6"
             height="250px"
@@ -110,40 +129,59 @@ function ClassPage() {
             <Text color="whiteAlpha.800" fontSize="lg">
               {cls.description}
             </Text>
-            <Button
-              backgroundColor="green.700"
-              marginTop="4"
-              color="white"
-              _hover={{
-                backgroundColor: "green.700"
-              }}
-              _active={{
-                backgroundColor: "green.800"
-              }}
-              onClick={() => setModal(MODAL_TYPE.SETTINGS)}
-            >
-              Pengaturan
-            </Button>
+            {cls.isTeacher ? (
+              <Button
+                backgroundColor="green.700"
+                marginTop="4"
+                color="white"
+                _hover={{
+                  backgroundColor: "green.700"
+                }}
+                _active={{
+                  backgroundColor: "green.800"
+                }}
+                onClick={() => setModal(MODAL_TYPE.SETTINGS)}
+              >
+                Pengaturan
+              </Button>
+            ) : (
+              <Button
+                backgroundColor="green.700"
+                marginTop="4"
+                color="white"
+                _hover={{
+                  backgroundColor: "green.700"
+                }}
+                _active={{
+                  backgroundColor: "green.800"
+                }}
+                onClick={onPromptOpen}
+              >
+                Keluar Kelas
+              </Button>
+            )}
           </Box>
           <Flex justifyContent="space-between" marginTop="8">
             <Text fontWeight="bold" color="gray.800" fontSize="3xl">
               Aktifitas
             </Text>
-            <Menu isLazy>
-              <MenuButton as={Button} rightIcon={<BiChevronDown size="18" />}>
-                Buat
-              </MenuButton>
-              <Portal>
-                <MenuList>
-                  <MenuItem onClick={() => setModal(MODAL_TYPE.TASK)}>
-                    Buat Tugas
-                  </MenuItem>
-                  <MenuItem onClick={() => setModal(MODAL_TYPE.ANNOUNCEMENT)}>
-                    Buat Pengumuman
-                  </MenuItem>
-                </MenuList>
-              </Portal>
-            </Menu>
+            {cls.isTeacher ? (
+              <Menu isLazy>
+                <MenuButton as={Button} rightIcon={<BiChevronDown size="18" />}>
+                  Buat
+                </MenuButton>
+                <Portal>
+                  <MenuList>
+                    <MenuItem onClick={() => setModal(MODAL_TYPE.TASK)}>
+                      Buat Tugas
+                    </MenuItem>
+                    <MenuItem onClick={() => setModal(MODAL_TYPE.ANNOUNCEMENT)}>
+                      Buat Pengumuman
+                    </MenuItem>
+                  </MenuList>
+                </Portal>
+              </Menu>
+            ) : null}
           </Flex>
           <Box
             marginTop="8"
@@ -423,6 +461,66 @@ function AnnouncementCreator({isOpen, onClose}) {
         </ModalBody>
       </ModalContent>
     </Modal>
+  );
+}
+
+function ConfirmationPrompt({isOpen, onClose}) {
+  const cancelRef = React.useRef();
+  const {user} = useAuth();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const toast = useToast();
+
+  const confirm = async () => {
+    try {
+      setIsSubmitting(true);
+      const url = `/api/classes/${router.query.cid}/members/${user.id}`;
+      await axios.delete(url);
+      setIsSubmitting(false);
+      router.push("/home");
+    } catch (error) {
+      setIsSubmitting(false);
+      toast({
+        status: "error",
+        title: `Upsss, gagal melakukan operasi`,
+        isClosable: true
+      });
+    }
+  };
+
+  return (
+    <AlertDialog
+      isOpen={isOpen}
+      leastDestructiveRef={cancelRef}
+      onClose={onClose}
+    >
+      <AlertDialogOverlay>
+        <AlertDialogContent>
+          <AlertDialogHeader fontSize="lg" fontWeight="bold">
+            Keluar Kelas
+          </AlertDialogHeader>
+
+          <AlertDialogBody>
+            Anda akan tidak punya akses ke kelas ini dan akan dihapus dari
+            daftar murid namun data anda tetap akan disimpan di kelas.
+          </AlertDialogBody>
+
+          <AlertDialogFooter>
+            <Button ref={cancelRef} onClick={onClose}>
+              Batal
+            </Button>
+            <Button
+              colorScheme="red"
+              onClick={confirm}
+              ml={3}
+              isDisabled={isSubmitting}
+            >
+              Keluar
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialogOverlay>
+    </AlertDialog>
   );
 }
 

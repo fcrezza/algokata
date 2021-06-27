@@ -17,8 +17,12 @@ export default async function handler(req, res) {
       await putHandler(req, res);
       break;
 
+    case "DELETE":
+      await deleteHandler(req, res);
+      break;
+
     default:
-      res.setHeader("Allow", ["GET", "PUT"]);
+      res.setHeader("Allow", ["GET", "PUT", "DELETE"]);
       res.status(405).json({
         error: {code: 405, message: `Method ${req.method} Not Allowed`}
       });
@@ -134,6 +138,53 @@ async function putHandler(req, res) {
     }
 
     res.json({...clsData, name: className, description: classDescription});
+  } catch (error) {
+    console.log(error);
+    const errorData = new HTTPInternalServerError(
+      "Upsss ada kesalahan saat memproses request"
+    );
+    res
+      .status(errorData.code)
+      .json({error: {...errorData, message: errorData.message}});
+  }
+}
+
+async function deleteHandler(req, res) {
+  try {
+    const {id: idClass} = req.query;
+    const {idToken, refreshToken} = req.cookies;
+    const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
+    let userRef = admin.firestore().collection("users");
+    const clsRef = admin.firestore().collection("classes").doc(idClass);
+    const userData = (await userRef.doc(user.user_id).get()).data();
+
+    if (userData.role !== "teacher") {
+      const error = new HTTPForbiddenError(
+        "Operasi memerlukan identitas sebagai pengajar"
+      );
+      return res.status(error.code).json({
+        error: {
+          ...error,
+          message: error.message
+        }
+      });
+    }
+
+    const clsData = (await clsRef.get()).data();
+
+    if (userData.id !== clsData.teacher.id) {
+      const error = new HTTPUnauthorizedError("Operasi memerlukan autentikasi");
+      return res.status(error.code).json({
+        error: {
+          ...error,
+          message: error.message
+        }
+      });
+    }
+
+    if (newIdToken !== null) {
+      sendCookie({res}, "idToken", newIdToken);
+    }
   } catch (error) {
     console.log(error);
     const errorData = new HTTPInternalServerError(
