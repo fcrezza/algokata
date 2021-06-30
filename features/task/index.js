@@ -34,11 +34,8 @@ export default function Task() {
   const {isOpen, onClose, onOpen} = useDisclosure();
   const {user} = useAuth();
   const router = useRouter();
-  const {
-    data: activity,
-    error,
-    mutate
-  } = useSWR(`/api/classes/${router.query.cid}/activities/${router.query.tid}`);
+  const url = `/api/classes/${router.query.cid}/activities/${router.query.tid}`;
+  const {data: activity, error, mutate} = useSWR(url);
 
   return (
     <Container
@@ -90,11 +87,17 @@ export default function Task() {
               </Text>
               <Stack marginTop="10" spacing="4">
                 {activity.taskItems.map(item => (
-                  <TaskItem key={item.id} title={item.title} />
+                  <TaskItem
+                    key={item.id}
+                    title={item.title}
+                    href={`${router.asPath}/${item.id}`}
+                  />
                 ))}
-                <Button colorScheme="green" onClick={onOpen}>
-                  <MdAdd size="24" />
-                </Button>
+                {user.role === "teacher" ? (
+                  <Button colorScheme="green" onClick={onOpen}>
+                    <MdAdd size="24" />
+                  </Button>
+                ) : null}
               </Stack>
             </React.Fragment>
           );
@@ -124,7 +127,7 @@ const OptionButton = React.forwardRef((props, ref) => {
   );
 });
 
-function TaskItem({title, isDone}) {
+function TaskItem({title, isDone, href}) {
   return (
     <LinkBox
       backgroundColor="gray.100"
@@ -133,7 +136,7 @@ function TaskItem({title, isDone}) {
         backgroundColor: "gray.200"
       }}
     >
-      <NextLink href={"#"} passHref>
+      <NextLink href={href} passHref>
         <LinkOverlay>
           <Flex
             paddingLeft="2"
