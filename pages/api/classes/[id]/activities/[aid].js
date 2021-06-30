@@ -1,4 +1,5 @@
 import {
+  HTTPForbiddenError,
   HTTPInternalServerError,
   HTTPNotFoundError,
   HTTPUnauthorizedError
@@ -12,8 +13,16 @@ export default async function handler(req, res) {
       await deleteHandler(req, res);
       break;
 
+    case "POST":
+      await postHandler(req, res);
+      break;
+
+    case "GET":
+      await getHandler(req, res);
+      break;
+
     default:
-      res.setHeader("Allow", ["DELETE", "POST"]);
+      res.setHeader("Allow", ["DELETE", "POST", "GET"]);
       res.status(405).json({
         error: {code: 405, message: `Method ${req.method} Not Allowed`}
       });
@@ -83,5 +92,169 @@ async function deleteHandler(req, res) {
       "Upsss ada kesalahan saat memproses request"
     );
     res.status(errorData.code).json({...errorData, message: errorData.message});
+  }
+}
+
+async function postHandler(req, res) {
+  try {
+    const {id: idClass, aid: activityId} = req.query;
+    const {title, description, solutionCode, testCode} = req.body;
+    const {idToken, refreshToken} = req.cookies;
+    const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
+    let userClass = await admin
+      .firestore()
+      .collection("users")
+      .doc(user.user_id)
+      .collection("classes")
+      .doc(idClass)
+      .get();
+
+    if (!userClass.exists) {
+      const error = new HTTPNotFoundError("Kelas tidak ditemukan");
+      return res.status(error.code).json({
+        ...error,
+        message: error.message
+      });
+    }
+
+    userClass = userClass.data();
+
+    if (!userClass.isTeacher) {
+      const error = new HTTPForbiddenError("Operasi tidak diijinkan");
+      return res.status(error.code).json({
+        ...error,
+        message: error.message
+      });
+    }
+
+    const activityRef = admin
+      .firestore()
+      .doc(`classes/${idClass}/activities/${activityId}`);
+    let activity = await activityRef.get();
+
+    if (!activity.exists) {
+      const error = new HTTPNotFoundError(
+        "Aktivitas tidak  ditemukan tidak ditemukan"
+      );
+      return res.status(error.code).json({
+        ...error,
+        message: error.message
+      });
+    }
+
+    activity = activity.data();
+
+    if (activity.type !== "task") {
+      const error = new HTTPNotFoundError("Aktivitas bukan tipe task");
+      return res.status(error.code).json({
+        ...error,
+        message: error.message
+      });
+    }
+
+    let newItem = activityRef.collection("taskItems").doc();
+    await admin.firestore().runTransaction(async t => {
+      t.update(activityRef, {
+        taskItems: admin.firestore.FieldValue.arrayUnion({
+          id: newItem.id,
+          title
+        })
+      });
+      t.set(newItem, {
+        id: newItem.id,
+        title,
+        description,
+        solutionCode,
+        testCode,
+        class: {
+          id: userClass.id,
+          name: userClass.name
+        },
+        task: {
+          id: activity.id,
+          title: activity.title
+        },
+        createdAt: new Date().toISOString()
+      });
+    });
+    newItem = await newItem.get();
+
+    if (newIdToken !== null) {
+      sendCookie({res}, "idToken", newIdToken);
+    }
+
+    res.json(newItem.data());
+  } catch (error) {
+    console.log(error);
+    if (error.code === 401) {
+      return res
+        .status(error.code)
+        .json({error: {status: error.status, message: error.message}});
+    }
+
+    const errorData = new HTTPInternalServerError(
+      "Upsss ada kesalahan saat memproses request"
+    );
+    res
+      .status(errorData.code)
+      .json({error: {...errorData, message: errorData.message}});
+  }
+}
+
+async function getHandler(req, res) {
+  try {
+    const {id: idClass, aid: activityId} = req.query;
+    const {idToken, refreshToken} = req.cookies;
+    const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
+    const userClass = await admin
+      .firestore()
+      .collection("users")
+      .doc(user.user_id)
+      .collection("classes")
+      .doc(idClass)
+      .get();
+
+    if (!userClass.exists) {
+      const error = new HTTPNotFoundError("Kelas tidak ditemukan");
+      return res.status(error.code).json({
+        ...error,
+        message: error.message
+      });
+    }
+
+    const activity = await admin
+      .firestore()
+      .doc(`classes/${idClass}/activities/${activityId}`)
+      .get();
+
+    if (!activity.exists) {
+      const error = new HTTPNotFoundError(
+        "Aktivitas tidak  ditemukan tidak ditemukan"
+      );
+      return res.status(error.code).json({
+        ...error,
+        message: error.message
+      });
+    }
+
+    if (newIdToken !== null) {
+      sendCookie({res}, "idToken", newIdToken);
+    }
+
+    res.json(activity.data());
+  } catch (error) {
+    console.log(error);
+    if (error.code === 401) {
+      return res
+        .status(error.code)
+        .json({error: {status: error.status, message: error.message}});
+    }
+
+    const errorData = new HTTPInternalServerError(
+      "Upsss ada kesalahan saat memproses request"
+    );
+    res
+      .status(errorData.code)
+      .json({error: {...errorData, message: errorData.message}});
   }
 }

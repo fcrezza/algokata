@@ -24,7 +24,7 @@ function ClassMembersPage() {
     error,
     mutate
   } = useSWR(`/api/classes/${router.query.cid}/members`);
-  console.log(classData);
+
   return (
     <Container
       paddingY="6"

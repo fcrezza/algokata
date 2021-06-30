@@ -124,6 +124,7 @@ async function postHandler(req, res) {
         title,
         description,
         type,
+        taskItems: [],
         createdAt: new Date().toISOString()
       });
     }

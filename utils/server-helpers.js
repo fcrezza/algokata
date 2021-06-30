@@ -2,6 +2,7 @@ import axios from "axios";
 import {stringify} from "querystring";
 import nookies from "nookies";
 import admin from "./firebase-admin";
+import {HTTPUnauthorizedError} from "./errors";
 
 export async function verifyIdentity(idToken, refreshToken) {
   try {
@@ -26,9 +27,14 @@ export async function verifyIdentity(idToken, refreshToken) {
       return [user, data.id_token];
     }
 
+    const errorData = new HTTPUnauthorizedError(
+      "Operasi membutuhkan terauthentikasi"
+    );
+
     throw {
-      code: 401,
-      message: "Operasi membutuhkan terauthentikasi"
+      code: errorData.code,
+      status: errorData.status,
+      message: errorData.message
     };
   }
 }
