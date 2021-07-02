@@ -152,14 +152,35 @@ async function postHandler(req, res) {
       });
     }
 
+    let currentLastItem = await activityRef
+      .collection("taskItems")
+      .orderBy("order", "desc")
+      .limit(1)
+      .get();
+    const currentLastItemRef = currentLastItem.docs[0];
+    currentLastItem = currentLastItemRef.data();
+    const currentLastItemOrder = currentLastItem.empty
+      ? 0
+      : currentLastItem.order;
     let newItem = activityRef.collection("taskItems").doc();
     await admin.firestore().runTransaction(async t => {
       t.update(activityRef, {
         taskItems: admin.firestore.FieldValue.arrayUnion({
           id: newItem.id,
-          title
+          title,
+          order: currentLastItemOrder + 1
         })
       });
+      t.set(
+        currentLastItemRef.ref,
+        {
+          next: {
+            id: newItem.id,
+            title
+          }
+        },
+        {merge: true}
+      );
       t.set(newItem, {
         id: newItem.id,
         title,
@@ -174,6 +195,8 @@ async function postHandler(req, res) {
           id: activity.id,
           title: activity.title
         },
+        order: currentLastItemOrder + 1,
+        next: null,
         createdAt: new Date().toISOString()
       });
     });
@@ -222,10 +245,10 @@ async function getHandler(req, res) {
       });
     }
 
-    const activity = await admin
+    const activityRef = admin
       .firestore()
-      .doc(`classes/${idClass}/activities/${activityId}`)
-      .get();
+      .doc(`classes/${idClass}/activities/${activityId}`);
+    let activity = await activityRef.get();
 
     if (!activity.exists) {
       const error = new HTTPNotFoundError(
@@ -237,11 +260,32 @@ async function getHandler(req, res) {
       });
     }
 
+    activity = activity.data();
+
+    let studentAnswers = await activityRef
+      .collection("studentAnswers")
+      .doc(user.user_id)
+      .collection("answers")
+      .get();
+    studentAnswers = studentAnswers.docs.map(a => a.data());
+
+    if (studentAnswers.length > 0) {
+      activity.taskItems.forEach(i => {
+        const isExists = studentAnswers.find(a => a.id === i.id);
+
+        if (isExists) {
+          i.isDone = true;
+        } else {
+          i.isDone = false;
+        }
+      });
+    }
+
     if (newIdToken !== null) {
       sendCookie({res}, "idToken", newIdToken);
     }
 
-    res.json(activity.data());
+    res.json(activity);
   } catch (error) {
     console.log(error);
     if (error.code === 401) {

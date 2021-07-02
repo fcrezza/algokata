@@ -90,6 +90,7 @@ export default function Task() {
                   <TaskItem
                     key={item.id}
                     title={item.title}
+                    isDone={item.isDone}
                     href={`${router.asPath}/${item.id}`}
                   />
                 ))}

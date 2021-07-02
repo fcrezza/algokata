@@ -1,5 +1,4 @@
 import React from "react";
-import Head from "next/head";
 import NextLink from "next/link";
 import {Box, Container, Flex, Heading, Text} from "@chakra-ui/layout";
 import ReactMarkdown from "react-markdown";
@@ -26,7 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
-  useDisclosure
+  useDisclosure,
+  Icon,
+  useToast
 } from "@chakra-ui/react";
 import {css} from "@emotion/react";
 import dynamic from "next/dynamic";
@@ -35,9 +36,12 @@ import "codemirror/lib/codemirror.css";
 import "codemirror/theme/eclipse.css";
 import useSWR from "swr";
 import {useRouter} from "next/router";
+import axios from "axios";
 
 import {Loader} from "components/Loader";
 import ErrorFallback from "features/cls/ErrorFallback";
+import Head from "components/Head";
+import {MdCheckCircle} from "react-icons/md";
 
 const CodeMirror = dynamic(
   () => import("react-codemirror2").then(mod => mod.Controlled),
@@ -88,7 +92,8 @@ const components = {
 
 export default function TaskItem() {
   const router = useRouter();
-  const url = `/api/classes/${router.query.cid}/activities/${router.query.tid}/${router.query.tiid}`;
+  const {cid: classId, tid: taskId, tiid: taskItemId} = router.query;
+  const url = `/api/classes/${classId}/activities/${taskId}/${taskItemId}`;
   const {data: itemData, error, mutate} = useSWR(url);
   const [solutionCode, setSolutionCode] = React.useState("");
   const [validationResult, setValidationResult] = React.useState(null);
@@ -98,6 +103,7 @@ export default function TaskItem() {
     onOpen: onDialogOpen
   } = useDisclosure();
   const iframeRef = React.useRef();
+  const toast = useToast();
 
   const handleRun = () => {
     iframeRef.current.contentWindow.postMessage(
@@ -106,9 +112,32 @@ export default function TaskItem() {
     );
   };
 
+  const saveAnswer = async () => {
+    try {
+      const url = `/api/classes/${classId}/activities/${taskId}/answers`;
+      const requestBody = {
+        solutionCode,
+        taskItemId
+      };
+      await axios.post(url, requestBody);
+      setSolutionCode("");
+      setValidationResult(null);
+      if (itemData.next !== null) {
+        router.push(`/c/${classId}/${taskId}/${itemData.next.id}`);
+      } else {
+        router.push(`/c/${classId}/${taskId}`);
+      }
+    } catch (error) {
+      toast({
+        status: "error",
+        title: `Upsss, gagal melakukan operasi`,
+        isClosable: true
+      });
+    }
+  };
+
   React.useEffect(() => {
-    // TODO: handle when error? to prevent submitting state always true
-    const messageHandler = ({data, origin}) => {
+    const messageHandler = async ({data, origin}) => {
       if (origin === process.env.NEXT_PUBLIC_IFRAME_ORIGIN) {
         setValidationResult(data);
       }
@@ -134,7 +163,7 @@ export default function TaskItem() {
         if (itemData) {
           return (
             <React.Fragment>
-              <Head title="." />
+              <Head title={`${itemData.title} - {itemData.task.title}`} />
               <ResetEditorDialog
                 onClose={onDialogClose}
                 isOpen={isDialogOpen}
@@ -146,6 +175,7 @@ export default function TaskItem() {
               <ValidationResultModal
                 result={validationResult}
                 onClose={() => setValidationResult(null)}
+                onSave={saveAnswer}
               />
               <Flex overflow="hidden">
                 <Box
@@ -174,7 +204,14 @@ export default function TaskItem() {
                     </BreadcrumbItem>
                   </Breadcrumb>
                   <Heading as="h3" color="gray.800" fontSize="3xl">
-                    {itemData.title}
+                    {itemData.title}{" "}
+                    {itemData.isDone ? (
+                      <Icon
+                        as={MdCheckCircle}
+                        color={"green.600"}
+                        boxSize="7"
+                      />
+                    ) : null}
                   </Heading>
                   <Box marginY="4">
                     <ReactMarkdown components={components}>
@@ -258,48 +295,71 @@ export default function TaskItem() {
   );
 }
 
-function ValidationResultModal({result, onClose}) {
+function ValidationResultModal({result, onClose, onSave}) {
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  let buttonText = "";
+  let modalTitle = "";
+  let onClickCallback = onClose;
+  const onCloseCallback = isSubmitting ? () => {} : onClose;
+  let listItems = [];
+
+  if (result) {
+    if (result.stats.failures === 0) {
+      buttonText = "Simpan Dan Lanjut Ke Item Berikutnya";
+      modalTitle = "Horee, berhasil";
+      onClickCallback = async () => {
+        setIsSubmitting(true);
+        await onSave();
+        setIsSubmitting(false);
+      };
+    } else {
+      buttonText = "Kembali";
+      modalTitle = "Upzzz, masih ada yang salah";
+    }
+
+    listItems = result.result.map(r => {
+      const {id, title, state, error, type} = r;
+
+      if (type === "test") {
+        const itemColor = state === "passed" ? "green.400" : "red.400";
+        let errorMessage = null;
+
+        if (state === "failed") {
+          errorMessage = (
+            <Text fontSize="sm" color="gray.600">
+              Error: {error}
+            </Text>
+          );
+        }
+
+        return (
+          <ListItem key={id} color={itemColor}>
+            {title}
+            {errorMessage}
+          </ListItem>
+        );
+      }
+    });
+  }
+
   return (
-    <Modal isOpen={result !== null} onClose={onClose}>
+    <Modal isOpen={result !== null} onClose={onCloseCallback}>
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>
-          {result?.stats?.failures === 0
-            ? "Horee, berhasil!"
-            : "Upzzz, masih ada yang salah"}
-        </ModalHeader>
-        <ModalCloseButton />
+        <ModalHeader>{modalTitle}</ModalHeader>
+        <ModalCloseButton disabled={isSubmitting} />
         <ModalBody>
-          <UnorderedList>
-            {result?.result.map(r => {
-              if (r.type === "test") {
-                return (
-                  <ListItem
-                    key={r.id}
-                    color={r.state === "passed" ? "green.400" : "red.400"}
-                  >
-                    {r.title}
-                    {r.state === "failed" ? (
-                      <Text fontSize="sm" color="gray.600">
-                        Error: {r.error}
-                      </Text>
-                    ) : null}
-                  </ListItem>
-                );
-              }
-            })}
-          </UnorderedList>
+          <UnorderedList>{listItems}</UnorderedList>
         </ModalBody>
         <ModalFooter>
           <Button
             colorScheme="green"
             marginRight={3}
-            onClick={onClose}
+            onClick={onClickCallback}
+            disabled={isSubmitting}
             isFullWidth
           >
-            {result?.stats?.failures === 0
-              ? "Lanjut Ke Tugas Berikutnya"
-              : "Coba Lagi"}
+            {buttonText}
           </Button>
         </ModalFooter>
       </ModalContent>

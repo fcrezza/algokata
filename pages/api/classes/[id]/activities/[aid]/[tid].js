@@ -53,10 +53,7 @@ async function getHandler(req, res) {
       });
     }
 
-    const taskItem = await activityRef
-      .collection("taskItems")
-      .doc(itemId)
-      .get();
+    let taskItem = await activityRef.collection("taskItems").doc(itemId).get();
 
     if (!taskItem.exists) {
       const error = new HTTPNotFoundError(
@@ -68,11 +65,26 @@ async function getHandler(req, res) {
       });
     }
 
+    taskItem = taskItem.data();
+
+    const userAnswer = await activityRef
+      .collection("studentAnswers")
+      .doc(user.user_id)
+      .collection("answers")
+      .doc(taskItem.id)
+      .get();
+
+    if (userAnswer.exists) {
+      taskItem.isDone = true;
+    } else {
+      taskItem.isDone = false;
+    }
+
     if (newIdToken !== null) {
       sendCookie({res}, "idToken", newIdToken);
     }
 
-    res.json(taskItem.data());
+    res.json(taskItem);
   } catch (error) {
     console.log(error);
     if (error.code === 401) {
