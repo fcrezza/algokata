@@ -1,8 +1,53 @@
 import axios from "axios";
-import {stringify} from "querystring";
 import nookies from "nookies";
+import {stringify} from "querystring";
+
 import admin from "./firebase-admin";
-import {HTTPUnauthorizedError} from "./errors";
+import {HTTPInternalServerError, HTTPUnauthorizedError} from "./errors";
+
+export function withMethod(handlerObj = {}) {
+  const allowedMethod = Object.keys(handlerObj);
+
+  return async function (req, res) {
+    if (handlerObj[req.method] !== undefined) {
+      await handlerObj[req.method](req, res);
+    } else {
+      res.setHeader("Allow", allowedMethod);
+      res.status(405).json({
+        error: {code: 405, message: `Method ${req.method} Not Allowed`}
+      });
+    }
+  };
+}
+
+export function withAuth(handler) {
+  return async function (req, res) {
+    try {
+      const {idToken, refreshToken} = req.cookies;
+      const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
+      req.authenticatedUser = user;
+
+      if (newIdToken !== null) {
+        sendCookie({res}, "idToken", newIdToken);
+      }
+
+      await handler(req, res);
+    } catch (error) {
+      if (error.code === 401) {
+        return res
+          .status(error.code)
+          .json({error: {status: error.status, message: error.message}});
+      }
+
+      const errorData = new HTTPInternalServerError(
+        "Upsss ada kesalahan saat memproses request"
+      );
+      res
+        .status(errorData.code)
+        .json({error: {...errorData, message: errorData.message}});
+    }
+  };
+}
 
 export async function verifyIdentity(idToken, refreshToken) {
   try {

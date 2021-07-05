@@ -81,9 +81,24 @@ export default function Navigation() {
         </LinkBox>
         {isInClass ? (
           <Flex marginX="auto">
-            <ClassLink href={`/c/${router.query.cid}`}>Linimasa</ClassLink>
-            <ClassLink href={`/d/${router.query.cid}`}>Diskusi</ClassLink>
-            <ClassLink href={`/m/${router.query.cid}`}>Anggota</ClassLink>
+            <ClassLink
+              href={`/c/${router.query.cid}`}
+              isActive={router.pathname === "/c/[cid]"}
+            >
+              Linimasa
+            </ClassLink>
+            <ClassLink
+              href={`/d/${router.query.cid}`}
+              isActive={router.pathname === "/d/[cid]"}
+            >
+              Diskusi
+            </ClassLink>
+            <ClassLink
+              href={`/m/${router.query.cid}`}
+              isActive={router.pathname === "/m/[cid]"}
+            >
+              Anggota
+            </ClassLink>
           </Flex>
         ) : null}
         {!isLandingPage && !isAuthPage ? (
@@ -121,10 +136,7 @@ export default function Navigation() {
   );
 }
 
-function ClassLink({children, href}) {
-  const router = useRouter();
-  const isActive = router.asPath === href;
-
+function ClassLink({children, href, isActive}) {
   return (
     <LinkBox
       _hover={{

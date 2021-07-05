@@ -1,94 +1,29 @@
 import React from "react";
 import NextLink from "next/link";
-import {Box, Container, Flex, Heading, Text} from "@chakra-ui/layout";
-import ReactMarkdown from "react-markdown";
-import {Prism as SyntaxHighlighter} from "react-syntax-highlighter";
-import {Button} from "@chakra-ui/button";
+import useSWR from "swr";
+import axios from "axios";
+import {useRouter} from "next/router";
+import {MdCheckCircle} from "react-icons/md";
+import {Box, Container, Flex, Heading} from "@chakra-ui/layout";
 import {
-  Code,
   Divider,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  UnorderedList,
-  ListItem,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
   useDisclosure,
   Icon,
   useToast
 } from "@chakra-ui/react";
-import {css} from "@emotion/react";
-import dynamic from "next/dynamic";
-import {ghcolors} from "react-syntax-highlighter/dist/cjs/styles/prism";
-import "codemirror/lib/codemirror.css";
-import "codemirror/theme/eclipse.css";
-import useSWR from "swr";
-import {useRouter} from "next/router";
-import axios from "axios";
+import MDEditor from "@uiw/react-md-editor";
+import "@uiw/react-markdown-preview/dist/markdown.css";
 
 import {Loader} from "components/Loader";
-import ErrorFallback from "features/cls/ErrorFallback";
 import Head from "components/Head";
-import {MdCheckCircle} from "react-icons/md";
-
-const CodeMirror = dynamic(
-  () => import("react-codemirror2").then(mod => mod.Controlled),
-  {
-    ssr: false
-  }
-);
-
-const isInBrowser =
-  typeof window !== "undefined" && typeof window.navigator !== "undefined";
-
-if (isInBrowser) {
-  require("codemirror/mode/javascript/javascript");
-}
-
-const components = {
-  code({inline, className, children, ...props}) {
-    const match = /language-(\w+)/.exec(className || "");
-    return !inline && match ? (
-      <SyntaxHighlighter
-        style={ghcolors}
-        language={match[1]}
-        PreTag="div"
-        {...props}
-      >
-        {String(children).replace(/\n$/, "")}
-      </SyntaxHighlighter>
-    ) : (
-      <Code className={className}>{children}</Code>
-    );
-  },
-  p: ({children}) => {
-    return (
-      <Text marginBottom={3} color="gray.600">
-        {children}
-      </Text>
-    );
-  },
-
-  h3({children}) {
-    return (
-      <Heading as="h3" fontSize="xl" marginBottom={3} color="gray.800">
-        {children}
-      </Heading>
-    );
-  }
-};
+import CodeEditor from "components/CodeEditor";
+import ErrorFallback from "./ErrorFallback";
+import ActionButton from "./ActionButton";
+import ResetEditorDialog from "./ResetEditorDialog";
+import ValidationResultModal from "./ValidationResultModal";
 
 export default function TaskItem() {
   const router = useRouter();
@@ -104,6 +39,11 @@ export default function TaskItem() {
   } = useDisclosure();
   const iframeRef = React.useRef();
   const toast = useToast();
+
+  const handleConfirmDialog = () => {
+    setSolutionCode("");
+    onDialogClose();
+  };
 
   const handleRun = () => {
     iframeRef.current.contentWindow.postMessage(
@@ -163,27 +103,19 @@ export default function TaskItem() {
         if (itemData) {
           return (
             <React.Fragment>
-              <Head title={`${itemData.title} - {itemData.task.title}`} />
+              <Head title={`${itemData.title} - ${itemData.task.title}`} />
               <ResetEditorDialog
                 onClose={onDialogClose}
                 isOpen={isDialogOpen}
-                onConfirmation={() => {
-                  setSolutionCode("");
-                  onDialogClose();
-                }}
+                onConfirmation={handleConfirmDialog}
               />
               <ValidationResultModal
                 result={validationResult}
                 onClose={() => setValidationResult(null)}
                 onSave={saveAnswer}
               />
-              <Flex overflow="hidden">
-                <Box
-                  width="50%"
-                  height="calc(100vh - 75px)"
-                  overflowY="auto"
-                  padding="6"
-                >
+              <Flex overflow="hidden" height="calc(100vh - 70px)">
+                <Box width="50%" overflowY="auto" padding="6">
                   <Breadcrumb marginBottom="4">
                     <BreadcrumbItem>
                       <NextLink href={`/c/${router.query.cid}`} passHref>
@@ -203,20 +135,21 @@ export default function TaskItem() {
                       </NextLink>
                     </BreadcrumbItem>
                   </Breadcrumb>
-                  <Heading as="h3" color="gray.800" fontSize="3xl">
-                    {itemData.title}{" "}
+                  <Flex alignItems="center">
+                    <Heading as="h3" color="gray.800" fontSize="3xl">
+                      {itemData.title}
+                    </Heading>
                     {itemData.isDone ? (
                       <Icon
                         as={MdCheckCircle}
                         color={"green.600"}
                         boxSize="7"
+                        marginLeft="2"
                       />
                     ) : null}
-                  </Heading>
+                  </Flex>
                   <Box marginY="4">
-                    <ReactMarkdown components={components}>
-                      {itemData.description}
-                    </ReactMarkdown>
+                    <MDEditor.Markdown source={itemData.description} />
                   </Box>
                   <ActionButton onClick={handleRun}>Jalankan Kode</ActionButton>
                   <ActionButton onClick={onDialogOpen}>
@@ -224,53 +157,23 @@ export default function TaskItem() {
                   </ActionButton>
                   <ActionButton>Dapatkan Bantuan</ActionButton>
                 </Box>
-                <Box height="calc(100vh - 75px)" width="50%">
-                  <Box
-                    css={css`
-                      height: 70%;
-
-                      .react-codemirror2 {
-                        height: 100%;
-                      }
-                    `}
-                  >
-                    <CodeMirror
+                <Box width="50%">
+                  <Box height="70%">
+                    <CodeEditor
                       value={
                         solutionCode.length === 0
                           ? itemData.solutionCode
                           : solutionCode
                       }
-                      onBeforeChange={(editor, data, value) =>
-                        setSolutionCode(value)
-                      }
-                      editorDidMount={editor => editor.setSize("100%", "100%")}
-                      options={{
-                        theme: "eclipse",
-                        lineNumbers: true,
-                        showCursorWhenSelecting: true,
-                        lineWrapping: true,
-                        autoFocus: true
-                      }}
+                      onChange={setSolutionCode}
+                      options={{autoFocus: true}}
                     />
                   </Box>
                   <Divider />
-                  <Box
-                    css={css`
-                      height: 30%;
-
-                      .react-codemirror2 {
-                        height: 100%;
-                      }
-                    `}
-                  >
-                    <CodeMirror
+                  <Box height="30%">
+                    <CodeEditor
                       value={itemData.testCode}
-                      editorDidMount={editor => editor.setSize("100%", "100%")}
                       options={{
-                        theme: "eclipse",
-                        lineNumbers: true,
-                        showCursorWhenSelecting: true,
-                        lineWrapping: true,
                         readOnly: "nocursor"
                       }}
                     />
@@ -292,123 +195,5 @@ export default function TaskItem() {
         }
       })()}
     </Container>
-  );
-}
-
-function ValidationResultModal({result, onClose, onSave}) {
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  let buttonText = "";
-  let modalTitle = "";
-  let onClickCallback = onClose;
-  const onCloseCallback = isSubmitting ? () => {} : onClose;
-  let listItems = [];
-
-  if (result) {
-    if (result.stats.failures === 0) {
-      buttonText = "Simpan Dan Lanjut Ke Item Berikutnya";
-      modalTitle = "Horee, berhasil";
-      onClickCallback = async () => {
-        setIsSubmitting(true);
-        await onSave();
-        setIsSubmitting(false);
-      };
-    } else {
-      buttonText = "Kembali";
-      modalTitle = "Upzzz, masih ada yang salah";
-    }
-
-    listItems = result.result.map(r => {
-      const {id, title, state, error, type} = r;
-
-      if (type === "test") {
-        const itemColor = state === "passed" ? "green.400" : "red.400";
-        let errorMessage = null;
-
-        if (state === "failed") {
-          errorMessage = (
-            <Text fontSize="sm" color="gray.600">
-              Error: {error}
-            </Text>
-          );
-        }
-
-        return (
-          <ListItem key={id} color={itemColor}>
-            {title}
-            {errorMessage}
-          </ListItem>
-        );
-      }
-    });
-  }
-
-  return (
-    <Modal isOpen={result !== null} onClose={onCloseCallback}>
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>{modalTitle}</ModalHeader>
-        <ModalCloseButton disabled={isSubmitting} />
-        <ModalBody>
-          <UnorderedList>{listItems}</UnorderedList>
-        </ModalBody>
-        <ModalFooter>
-          <Button
-            colorScheme="green"
-            marginRight={3}
-            onClick={onClickCallback}
-            disabled={isSubmitting}
-            isFullWidth
-          >
-            {buttonText}
-          </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
-  );
-}
-
-function ResetEditorDialog({isOpen, onConfirmation, onClose}) {
-  const cancelRef = React.useRef();
-
-  return (
-    <AlertDialog
-      isOpen={isOpen}
-      leastDestructiveRef={cancelRef}
-      onClose={onClose}
-    >
-      <AlertDialogOverlay>
-        <AlertDialogContent>
-          <AlertDialogHeader fontSize="lg" fontWeight="bold">
-            Reset Editor
-          </AlertDialogHeader>
-          <AlertDialogBody>
-            Apakah kamu yakin ingin mereset kode editor?
-          </AlertDialogBody>
-          <AlertDialogFooter>
-            <Button ref={cancelRef} onClick={onClose}>
-              Batal
-            </Button>
-            <Button colorScheme="red" onClick={onConfirmation} ml={3}>
-              Reset
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialogOverlay>
-    </AlertDialog>
-  );
-}
-
-function ActionButton({children, onClick}) {
-  return (
-    <Button
-      variant="outline"
-      colorScheme="green"
-      size="lg"
-      marginBottom="3"
-      onClick={onClick}
-      isFullWidth
-    >
-      {children}
-    </Button>
   );
 }

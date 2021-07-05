@@ -1,15 +1,13 @@
 import React from "react";
 import axios from "axios";
 import useSWR from "swr";
-import {useErrorHandler} from "react-error-boundary";
 
 import firebase from "utils/firebase-client";
 
 const AuthContext = React.createContext();
 
 export function AuthProvider({children}) {
-  const {data: user, mutate, error} = useSWR("/api/auth/user");
-  useErrorHandler(error);
+  const {data: user, mutate} = useSWR("/api/auth/user");
 
   const googleLogin = async () => {
     const provider = new firebase.auth.GoogleAuthProvider();

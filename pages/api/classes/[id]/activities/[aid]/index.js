@@ -152,16 +152,18 @@ async function postHandler(req, res) {
       });
     }
 
-    let currentLastItem = await activityRef
+    const currentLastItem = await activityRef
       .collection("taskItems")
       .orderBy("order", "desc")
       .limit(1)
       .get();
-    const currentLastItemRef = currentLastItem.docs[0];
-    currentLastItem = currentLastItemRef.data();
-    const currentLastItemOrder = currentLastItem.empty
-      ? 0
-      : currentLastItem.order;
+    let currentLastItemOrder = 0;
+
+    if (!currentLastItem.empty) {
+      const lastItemData = currentLastItem.docs[0].data();
+      currentLastItemOrder = lastItemData.order;
+    }
+
     let newItem = activityRef.collection("taskItems").doc();
     await admin.firestore().runTransaction(async t => {
       t.update(activityRef, {
@@ -171,16 +173,20 @@ async function postHandler(req, res) {
           order: currentLastItemOrder + 1
         })
       });
-      t.set(
-        currentLastItemRef.ref,
-        {
-          next: {
-            id: newItem.id,
-            title
-          }
-        },
-        {merge: true}
-      );
+
+      if (!currentLastItem.empty) {
+        t.set(
+          currentLastItem.docs[0].ref,
+          {
+            next: {
+              id: newItem.id,
+              title
+            }
+          },
+          {merge: true}
+        );
+      }
+
       t.set(newItem, {
         id: newItem.id,
         title,

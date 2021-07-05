@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
 async function getHandler(req, res) {
   try {
-    const {id: idClass} = req.query;
+    const {id: idClass, type, order} = req.query;
     const {idToken, refreshToken} = req.cookies;
     const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
     const userClassRef = admin
@@ -37,6 +37,7 @@ async function getHandler(req, res) {
       .collection("classes")
       .doc(idClass);
     const cls = await userClassRef.get();
+    let activites;
 
     if (!cls.exists) {
       const error = new HTTPNotFoundError("Kelas tidak ditemukan");
@@ -46,13 +47,25 @@ async function getHandler(req, res) {
       });
     }
 
-    let activites = await admin
-      .firestore()
-      .collection("classes")
-      .doc(idClass)
-      .collection("activities")
-      .orderBy("createdAt", "desc")
-      .get();
+    if (type) {
+      activites = await admin
+        .firestore()
+        .collection("classes")
+        .doc(idClass)
+        .collection("activities")
+        .where("type", "==", type)
+        .orderBy("createdAt", order)
+        .get();
+    } else {
+      activites = await admin
+        .firestore()
+        .collection("classes")
+        .doc(idClass)
+        .collection("activities")
+        .orderBy("createdAt", order)
+        .get();
+    }
+
     activites = activites.docs.map(a => a.data());
 
     if (newIdToken !== null) {

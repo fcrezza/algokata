@@ -86,14 +86,17 @@ export default function Task() {
                 {activity.description}
               </Text>
               <Stack marginTop="10" spacing="4">
-                {activity.taskItems.map(item => (
-                  <TaskItem
-                    key={item.id}
-                    title={item.title}
-                    isDone={item.isDone}
-                    href={`${router.asPath}/${item.id}`}
-                  />
-                ))}
+                {activity.taskItems.map(item => {
+                  return (
+                    <TaskItem
+                      key={item.id}
+                      title={item.title}
+                      isDone={item.isDone}
+                      isTeacher={user.role === "teacher"}
+                      href={`${router.asPath}/${item.id}`}
+                    />
+                  );
+                })}
                 {user.role === "teacher" ? (
                   <Button colorScheme="green" onClick={onOpen}>
                     <MdAdd size="24" />
@@ -128,13 +131,40 @@ const OptionButton = React.forwardRef((props, ref) => {
   );
 });
 
-function TaskItem({title, isDone, href}) {
+function TaskItem({title, href, isDone, isTeacher}) {
+  let rightElement = null;
+
+  if (isTeacher) {
+    rightElement = (
+      <Text
+        className="edit-text"
+        fontWeight="semibold"
+        fontSize="small"
+        color="gray.600"
+        display="none"
+      >
+        Edit
+      </Text>
+    );
+  } else {
+    rightElement = (
+      <Icon
+        as={isDone ? MdCheckCircle : VscCircleOutline}
+        color={isDone ? "green.600" : "gray.500"}
+        boxSize="6"
+      />
+    );
+  }
+
   return (
     <LinkBox
       backgroundColor="gray.100"
       borderRadius="lg"
       _hover={{
-        backgroundColor: "gray.200"
+        backgroundColor: "gray.200",
+        ".edit-text": {
+          display: "block"
+        }
       }}
     >
       <NextLink href={href} passHref>
@@ -155,11 +185,7 @@ function TaskItem({title, isDone, href}) {
             >
               {title}
             </Text>
-            <Icon
-              as={isDone ? MdCheckCircle : VscCircleOutline}
-              color={isDone ? "green.600" : "gray.500"}
-              boxSize="6"
-            />
+            {rightElement}
           </Flex>
         </LinkOverlay>
       </NextLink>

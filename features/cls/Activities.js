@@ -43,7 +43,7 @@ const MODAL_TYPE = {
 export default function Activities({cls}) {
   const [modal, setModal] = React.useState(MODAL_TYPE.NONE);
   const router = useRouter();
-  const url = `/api/classes/${router.query.cid}/activities`;
+  const url = `/api/classes/${router.query.cid}/activities?order=desc`;
   const {data: activites, error, mutate} = useSWR(url);
 
   const onClose = () => {
