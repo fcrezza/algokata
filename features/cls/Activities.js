@@ -34,10 +34,13 @@ import {Loader} from "components/Loader";
 import CreateTaskModal from "./CreateTaskModal";
 import ErrorFallback from "./ErrorFallback";
 import ConfirmationPrompt from "./ConfirmationPrompt";
+import EditTaskModal from "./EditTaskModal";
 
 const MODAL_TYPE = {
-  TASK: 1,
-  ANNOUNCEMENT: 2
+  NONE: 0,
+  CREATE_TASK: 1,
+  EDIT_TASK: 2,
+  ANNOUNCEMENT: 3
 };
 
 export default function Activities({cls}) {
@@ -45,6 +48,11 @@ export default function Activities({cls}) {
   const router = useRouter();
   const url = `/api/classes/${router.query.cid}/activities?order=desc`;
   const {data: activites, error, mutate} = useSWR(url);
+  const [editTask, setEditTask] = React.useState({
+    id: "",
+    title: "",
+    description: ""
+  });
 
   const onClose = () => {
     setModal(MODAL_TYPE.NONE);
@@ -53,6 +61,31 @@ export default function Activities({cls}) {
   const onCreateTask = async taskData => {
     await axios.post(url, taskData);
     await mutate();
+  };
+
+  const openEditModal = (id, title, description) => {
+    setEditTask({id, title, description});
+    setModal(MODAL_TYPE.EDIT_TASK);
+  };
+
+  const onEditTask = async (title, description) => {
+    const url = `/api/classes/${router.query.cid}/activities/${editTask.id}`;
+    const {data} = await axios.put(url, {title, description});
+    const newActivitesData = activites.map(a => {
+      if (a.id == data.id) {
+        a.title = data.title;
+        a.description = data.description;
+      }
+
+      return a;
+    });
+    await mutate(newActivitesData, false);
+    setEditTask({
+      id: "",
+      title: "",
+      description: ""
+    });
+    return data;
   };
 
   const onCreateAnnouncement = async announcementData => {
@@ -74,10 +107,19 @@ export default function Activities({cls}) {
         {cls.isTeacher ? (
           <React.Fragment>
             <CreateTaskModal
-              isOpen={modal === MODAL_TYPE.TASK}
+              isOpen={modal === MODAL_TYPE.CREATE_TASK}
               onClose={onClose}
               handleSubmit={onCreateTask}
             />
+            {modal === MODAL_TYPE.EDIT_TASK ? (
+              <EditTaskModal
+                isOpen={modal === MODAL_TYPE.EDIT_TASK}
+                onClose={onClose}
+                defaultTitle={editTask.title}
+                defaultDescription={editTask.description}
+                handleEditTask={onEditTask}
+              />
+            ) : null}
             <AnnouncementCreatorModal
               isOpen={modal === MODAL_TYPE.ANNOUNCEMENT}
               onClose={onClose}
@@ -89,7 +131,7 @@ export default function Activities({cls}) {
               </MenuButton>
               <Portal>
                 <MenuList>
-                  <MenuItem onClick={() => setModal(MODAL_TYPE.TASK)}>
+                  <MenuItem onClick={() => setModal(MODAL_TYPE.CREATE_TASK)}>
                     Buat Tugas
                   </MenuItem>
                   <MenuItem onClick={() => setModal(MODAL_TYPE.ANNOUNCEMENT)}>
@@ -141,6 +183,13 @@ export default function Activities({cls}) {
                       timestamp={timestamp}
                       url={`/c/${router.query.cid}/${activity.id}`}
                       isTeacher={cls.isTeacher ? true : false}
+                      onEdit={() =>
+                        openEditModal(
+                          activity.id,
+                          activity.title,
+                          activity.description
+                        )
+                      }
                       // onDelete={() => onDeleteActivity(activity.id)}
                     />
                   );
@@ -209,7 +258,7 @@ const OptionButton = React.forwardRef((props, ref) => {
   );
 });
 
-function Task({timestamp, url, title, isTeacher}) {
+function Task({timestamp, url, title, isTeacher, onEdit}) {
   return (
     <LinkBox
       _hover={{
@@ -243,7 +292,7 @@ function Task({timestamp, url, title, isTeacher}) {
         <Menu placement="left-start" isLazy>
           <MenuButton as={OptionButton} />
           <MenuList>
-            <MenuItem>Edit</MenuItem>
+            <MenuItem onClick={onEdit}>Edit</MenuItem>
             <MenuItem color="red.500">Hapus</MenuItem>
           </MenuList>
         </Menu>

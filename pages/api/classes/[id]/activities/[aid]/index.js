@@ -5,7 +5,7 @@ import {
   HTTPUnauthorizedError
 } from "utils/errors";
 import admin from "utils/firebase-admin";
-import {sendCookie, verifyIdentity} from "utils/server-helpers";
+import {batchWrite, sendCookie, verifyIdentity} from "utils/server-helpers";
 
 export default async function handler(req, res) {
   switch (req.method) {
@@ -17,12 +17,16 @@ export default async function handler(req, res) {
       await postHandler(req, res);
       break;
 
+    case "PUT":
+      await putHandler(req, res);
+      break;
+
     case "GET":
       await getHandler(req, res);
       break;
 
     default:
-      res.setHeader("Allow", ["DELETE", "POST", "GET"]);
+      res.setHeader("Allow", ["DELETE", "POST", "GET", "PUT"]);
       res.status(405).json({
         error: {code: 405, message: `Method ${req.method} Not Allowed`}
       });
@@ -254,7 +258,7 @@ async function getHandler(req, res) {
     const activityRef = admin
       .firestore()
       .doc(`classes/${idClass}/activities/${activityId}`);
-    let activity = await activityRef.get();
+    const activity = await activityRef.get();
 
     if (!activity.exists) {
       const error = new HTTPNotFoundError(
@@ -266,32 +270,86 @@ async function getHandler(req, res) {
       });
     }
 
-    activity = activity.data();
+    if (newIdToken !== null) {
+      sendCookie({res}, "idToken", newIdToken);
+    }
 
-    let studentAnswers = await activityRef
-      .collection("studentAnswers")
+    res.json(activity.data());
+  } catch (error) {
+    console.log(error);
+    if (error.code === 401) {
+      return res
+        .status(error.code)
+        .json({error: {status: error.status, message: error.message}});
+    }
+
+    const errorData = new HTTPInternalServerError(
+      "Upsss ada kesalahan saat memproses request"
+    );
+    res
+      .status(errorData.code)
+      .json({error: {...errorData, message: errorData.message}});
+  }
+}
+
+async function putHandler(req, res) {
+  try {
+    const {id: idClass, aid: activityId} = req.query;
+    const {title, description} = req.body;
+    const {idToken, refreshToken} = req.cookies;
+    const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
+    let userClass = await admin
+      .firestore()
+      .collection("users")
       .doc(user.user_id)
-      .collection("answers")
+      .collection("classes")
+      .doc(idClass)
       .get();
-    studentAnswers = studentAnswers.docs.map(a => a.data());
 
-    if (studentAnswers.length > 0) {
-      activity.taskItems.forEach(i => {
-        const isExists = studentAnswers.find(a => a.id === i.id);
-
-        if (isExists) {
-          i.isDone = true;
-        } else {
-          i.isDone = false;
-        }
+    if (!userClass.exists) {
+      const error = new HTTPNotFoundError("Kelas tidak ditemukan");
+      return res.status(error.code).json({
+        ...error,
+        message: error.message
       });
     }
+
+    userClass = userClass.data();
+
+    if (!userClass.isTeacher) {
+      const error = new HTTPForbiddenError("Operasi tidak diizinkan");
+      return res.status(error.code).json({
+        ...error,
+        message: error.message
+      });
+    }
+
+    const taskRef = admin
+      .firestore()
+      .collection("classes")
+      .doc(idClass)
+      .collection("activities")
+      .doc(activityId);
+    const task = await taskRef.get();
+
+    if (!task.exists) {
+      const error = new HTTPNotFoundError("Tugas tidak ditemukan");
+      return res.status(error.code).json({
+        ...error,
+        message: error.message
+      });
+    }
+
+    const taskItemsSnapshot = await taskRef.collection("taskItems").get();
+    await taskRef.update({title, description});
+    await batchWrite(taskItemsSnapshot, {task: {title}});
 
     if (newIdToken !== null) {
       sendCookie({res}, "idToken", newIdToken);
     }
 
-    res.json(activity);
+    const newTask = await taskRef.get();
+    res.json(newTask.data());
   } catch (error) {
     console.log(error);
     if (error.code === 401) {

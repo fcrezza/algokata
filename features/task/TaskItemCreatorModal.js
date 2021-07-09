@@ -1,8 +1,5 @@
 import * as React from "react";
-import axios from "axios";
-import {useRouter} from "next/router";
 import MDEditor from "@uiw/react-md-editor";
-import dynamic from "next/dynamic";
 // disable lint because `jsx` never used and only used for emotion
 // eslint-disable-next-line
 import {css, jsx} from "@emotion/react";
@@ -27,27 +24,14 @@ import {
   Text,
   Button,
   Flex,
-  Heading
+  Heading,
+  useDisclosure
 } from "@chakra-ui/react";
 import "@uiw/react-md-editor/dist/markdown-editor.css";
 import "@uiw/react-markdown-preview/dist/markdown.css";
-import "codemirror/theme/eclipse.css";
-import "codemirror/lib/codemirror.css";
-import {mutate} from "swr";
 
-const CodeMirror = dynamic(
-  () => import("react-codemirror2").then(mod => mod.Controlled),
-  {
-    ssr: false
-  }
-);
-
-const isInBrowser =
-  typeof window !== "undefined" && typeof window.navigator !== "undefined";
-
-if (isInBrowser) {
-  require("codemirror/mode/javascript/javascript");
-}
+import CodeEditor from "components/CodeEditor";
+import ConfirmationPrompt from "components/ConfirmationPrompt";
 
 const solutionExample = `function sum(a, b) {
   return a + b
@@ -62,38 +46,51 @@ it('10 + 20 sama dengan 30', () => {
 })
 `;
 
-export default function TaskItemModal({isOpen, onClose}) {
-  const [title, setTitle] = React.useState("");
-  const [description, setDescription] = React.useState("");
-  const [testCode, setTestCode] = React.useState("");
-  const [solutionCode, setSolutionCode] = React.useState("");
+export default function TaskItemModal(props) {
+  const {
+    isOpen,
+    onClose,
+    defaultValues,
+    handleDeleteItem,
+    handleCreateItem,
+    handleSaveChanges
+  } = props;
+  const {
+    title: defaultTitle,
+    description: defaultDescription,
+    solutionCode: defaultSolutionCode,
+    testCode: defaultTestCode
+  } = defaultValues;
+  const isEdit = Object.keys(defaultValues).length > 0;
+  const [title, setTitle] = React.useState(() => defaultTitle || "");
+  const [description, setDescription] = React.useState(
+    () => defaultDescription || ""
+  );
+  const [testCode, setTestCode] = React.useState(() => defaultTestCode || "");
+  const [solutionCode, setSolutionCode] = React.useState(
+    () => defaultSolutionCode || ""
+  );
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [validationResult, setValidationResult] = React.useState(null);
-  const router = useRouter();
+  const {
+    onOpen: onOpenPrompt,
+    onClose: onClosePrompt,
+    isOpen: isPromptOpen
+  } = useDisclosure();
   const toast = useToast();
   const iframeRef = React.useRef();
 
-  const closeModal = () => {
-    setTitle("");
-    setDescription("");
-    setTestCode("");
-    setSolutionCode("");
-    onClose();
-  };
-
-  const handleSubmit = async () => {
+  async function onCreate() {
     try {
-      const url = `/api/classes/${router.query.cid}/activities/${router.query.tid}`;
       setIsSubmitting(true);
-      await axios.post(url, {
-        title,
-        description,
-        solutionCode,
-        testCode
-      });
-      await mutate(url);
+      await handleCreateItem({title, description, solutionCode, testCode});
       setIsSubmitting(false);
-      closeModal();
+      toast({
+        status: "success",
+        title: `Item berhasil ditambahkan`,
+        isClosable: true
+      });
+      onClose();
     } catch (error) {
       setIsSubmitting(false);
       toast({
@@ -102,26 +99,52 @@ export default function TaskItemModal({isOpen, onClose}) {
         isClosable: true
       });
     }
-  };
+  }
 
-  const insertExample = () => {
+  async function onSaveChanges() {
+    try {
+      setIsSubmitting(true);
+      await handleSaveChanges({title, description, solutionCode, testCode});
+      setIsSubmitting(false);
+      toast({
+        status: "success",
+        title: `Perubahan berhasil disimpan`,
+        isClosable: true
+      });
+      onClose();
+    } catch (error) {
+      setIsSubmitting(false);
+      toast({
+        status: "error",
+        title: `Upsss, gagal melakukan operasi`,
+        isClosable: true
+      });
+    }
+  }
+
+  async function onDelete() {
+    await handleDeleteItem();
+    onClose();
+  }
+
+  function insertExample() {
     setSolutionCode(solutionExample);
     setTestCode(testCasesExample);
-  };
+  }
 
-  const handleRun = () => {
+  function handleRun() {
     iframeRef.current.contentWindow.postMessage(
       `${solutionCode}\n\n${testCode}`,
       process.env.NEXT_PUBLIC_IFRAME_ORIGIN
     );
-  };
+  }
 
   React.useEffect(() => {
-    const messageHandler = ({data, origin}) => {
+    function messageHandler({data, origin}) {
       if (origin === process.env.NEXT_PUBLIC_IFRAME_ORIGIN) {
         setValidationResult(data);
       }
-    };
+    }
 
     window.addEventListener("message", messageHandler);
 
@@ -132,7 +155,7 @@ export default function TaskItemModal({isOpen, onClose}) {
     <Modal
       isOpen={isOpen}
       size="full"
-      onClose={!isSubmitting ? closeModal : () => {}}
+      onClose={!isSubmitting ? onClose : () => {}}
     >
       <ModalContent margin="0">
         <ModalBody padding="0">
@@ -160,6 +183,16 @@ export default function TaskItemModal({isOpen, onClose}) {
               })}
             </UnorderedList>
           </ValidationResultModal>
+          <ConfirmationPrompt
+            isOpen={isPromptOpen}
+            onClose={onClosePrompt}
+            title="Hapus item"
+            actionTitle="Hapus"
+            description="Yakin ingin menghapus item?"
+            successMessage="Item berhasil dihapus"
+            errorMessage="Operasi gagal dilakukan"
+            onConfirmation={onDelete}
+          />
           <Flex
             paddingY="3"
             paddingX="6"
@@ -170,18 +203,32 @@ export default function TaskItemModal({isOpen, onClose}) {
             borderBottomStyle="solid"
           >
             <Flex alignItems="center">
-              <CloseButton borderRadius="50%" onClick={onClose} />
+              <CloseButton
+                borderRadius="50%"
+                onClick={onClose}
+                isDisabled={isSubmitting}
+              />
               <Heading marginLeft="4" as="h3" fontSize="xl" color="gray.800">
-                Buat Soal
+                {isEdit ? "Edit Soal" : "Buat Soal"}
               </Heading>
             </Flex>
-            <Button
-              colorScheme="green"
-              isDisabled={isSubmitting}
-              onClick={handleSubmit}
-            >
-              Buat
-            </Button>
+            <ButtonGroup isDisabled={isSubmitting}>
+              {isEdit ? (
+                <Button
+                  colorScheme="red"
+                  variant="ghost"
+                  onClick={onOpenPrompt}
+                >
+                  Hapus
+                </Button>
+              ) : null}
+              <Button
+                colorScheme="green"
+                onClick={isEdit ? onSaveChanges : onCreate}
+              >
+                {isEdit ? "Simpan" : "Buat"}
+              </Button>
+            </ButtonGroup>
           </Flex>
           <Box padding="6">
             <FormControl id="task-name">
@@ -223,14 +270,10 @@ function Solution({value, onChange}) {
     <Box
       width="50%"
       overflow="hidden"
-      css={css`
-        .react-codemirror2 {
-          height: 400px;
-          border-color: #ddd;
-          border-width: 0 0 1px 1px;
-          border-style: solid;
-        }
-      `}
+      height="400px"
+      borderColor="gray.200"
+      borderWidth="0 0 1px 1px"
+      borderStyle="solid"
     >
       <Flex
         backgroundColor="#f7f7f7"
@@ -251,14 +294,10 @@ function TestCase({value, onChange}) {
     <Box
       width="50%"
       overflow="hidden"
-      css={css`
-        .react-codemirror2 {
-          height: 400px;
-          border-color: #ddd;
-          border-width: 0 1px 1px 0;
-          border-style: solid;
-        }
-      `}
+      height="400px"
+      borderColor="gray.200"
+      borderWidth="0 1px 1px 0"
+      borderStyle="solid"
     >
       <Flex
         backgroundColor="#f7f7f7"
@@ -298,22 +337,6 @@ function EditorButton({children, onClick, isActive}) {
     >
       {children}
     </button>
-  );
-}
-
-function CodeEditor({value, onChange}) {
-  return (
-    <CodeMirror
-      onBeforeChange={(editor, data, value) => onChange(value)}
-      value={value}
-      editorDidMount={editor => editor.setSize("100%", "100%")}
-      options={{
-        theme: "eclipse",
-        lineNumbers: true,
-        showCursorWhenSelecting: true,
-        lineWrapping: true
-      }}
-    />
   );
 }
 

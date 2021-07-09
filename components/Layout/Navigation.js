@@ -48,7 +48,8 @@ export default function Navigation() {
   const isInClass =
     router.pathname.startsWith("/c/") ||
     router.pathname.startsWith("/d/") ||
-    router.pathname.startsWith("/m/");
+    router.pathname.startsWith("/m/") ||
+    router.pathname.startsWith("/tc/");
 
   return (
     <Container padding="0" maxWidth={isLandingPage ? "container.lg" : "full"}>
@@ -87,6 +88,14 @@ export default function Navigation() {
             >
               Linimasa
             </ClassLink>
+            {user.role === "teacher" ? (
+              <ClassLink
+                href={`/tc/${router.query.cid}`}
+                isActive={router.pathname === "/tc/[cid]"}
+              >
+                Untuk Diperiksa
+              </ClassLink>
+            ) : null}
             <ClassLink
               href={`/d/${router.query.cid}`}
               isActive={router.pathname === "/d/[cid]"}

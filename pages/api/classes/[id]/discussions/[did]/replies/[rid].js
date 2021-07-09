@@ -27,14 +27,13 @@ async function deleteHandler(req, res) {
     });
   }
 
-  const replyRef = admin
+  const discussionRef = admin
     .firestore()
     .collection("classes")
     .doc(idClass)
     .collection("discussions")
-    .doc(discussionId)
-    .collection("replies")
-    .doc(replyId);
+    .doc(discussionId);
+  const replyRef = discussionRef.collection("replies").doc(replyId);
   const reply = await replyRef.get();
 
   if (!reply.exists) {
@@ -59,7 +58,17 @@ async function deleteHandler(req, res) {
     });
   }
 
-  await replyRef.delete();
+  await admin.firestore().runTransaction(async function (t) {
+    t.delete(replyRef);
+    t.update(
+      discussionRef,
+      {
+        repliesCount: admin.firestore.FieldValue.increment(-1)
+      },
+      {merge: true}
+    );
+  });
+
   res.json({message: "Berhasil dihapus"});
 }
 

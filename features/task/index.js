@@ -1,19 +1,10 @@
 import * as React from "react";
-import NextLink from "next/link";
 import {useRouter} from "next/router";
 import useSWR from "swr";
-import {MdAdd, MdCheckCircle} from "react-icons/md";
 import {GoKebabVertical} from "react-icons/go";
-import {VscCircleOutline} from "react-icons/vsc";
 import {
-  Button,
   Container,
-  Flex,
   Heading,
-  Icon,
-  LinkBox,
-  LinkOverlay,
-  Stack,
   Text,
   Menu,
   MenuButton,
@@ -23,19 +14,31 @@ import {
   useDisclosure
 } from "@chakra-ui/react";
 
-import TaskItemCreatorModal from "features/task/TaskItemCreatorModal";
 import Head from "components/Head";
 import ErrorFallback from "components/ErrorFallback";
 import {Loader} from "components/Loader";
 import {useAuth} from "utils/auth";
-import {format} from "date-fns";
+import TaskItemList from "./TaskItemList";
+import formatTimestamp from "utils/formatTimestamp";
+import axios from "axios";
+import EditTaskModal from "./EditTaskModal";
 
 export default function Task() {
-  const {isOpen, onClose, onOpen} = useDisclosure();
   const {user} = useAuth();
   const router = useRouter();
   const url = `/api/classes/${router.query.cid}/activities/${router.query.tid}`;
   const {data: activity, error, mutate} = useSWR(url);
+  const {
+    onOpen: onEditModalOpen,
+    onClose: onEditModalClose,
+    isOpen: isEditModalOpen
+  } = useDisclosure();
+
+  async function handleEditTask(title, description) {
+    const {data} = await axios.put(url, {title, description});
+    await mutate(data, false);
+    return data;
+  }
 
   return (
     <Container
@@ -66,18 +69,24 @@ export default function Task() {
               />
               {user.role === "teacher" ? (
                 <React.Fragment>
+                  <EditTaskModal
+                    isOpen={isEditModalOpen}
+                    onClose={onEditModalClose}
+                    defaultTitle={activity.title}
+                    defaultDescription={activity.description}
+                    handleEditTask={handleEditTask}
+                  />
                   <Menu placement="left-start" isLazy>
                     <MenuButton as={OptionButton} />
                     <MenuList>
-                      <MenuItem>Edit</MenuItem>
+                      <MenuItem onClick={onEditModalOpen}>Edit</MenuItem>
                       <MenuItem color="red.500">Hapus</MenuItem>
                     </MenuList>
                   </Menu>
-                  <TaskItemCreatorModal isOpen={isOpen} onClose={onClose} />
                 </React.Fragment>
               ) : null}
               <Text color="gray.600" fontSize="sm" marginBottom="3">
-                {format(new Date(activity.createdAt), "e LLL yyyy")}
+                {formatTimestamp(activity.createdAt)}
               </Text>
               <Heading color="gray.800" marginBottom="5">
                 {activity.title}
@@ -85,24 +94,7 @@ export default function Task() {
               <Text color="gray.600" fontSize="lg">
                 {activity.description}
               </Text>
-              <Stack marginTop="10" spacing="4">
-                {activity.taskItems.map(item => {
-                  return (
-                    <TaskItem
-                      key={item.id}
-                      title={item.title}
-                      isDone={item.isDone}
-                      isTeacher={user.role === "teacher"}
-                      href={`${router.asPath}/${item.id}`}
-                    />
-                  );
-                })}
-                {user.role === "teacher" ? (
-                  <Button colorScheme="green" onClick={onOpen}>
-                    <MdAdd size="24" />
-                  </Button>
-                ) : null}
-              </Stack>
+              <TaskItemList />
             </React.Fragment>
           );
         }
@@ -130,65 +122,3 @@ const OptionButton = React.forwardRef((props, ref) => {
     />
   );
 });
-
-function TaskItem({title, href, isDone, isTeacher}) {
-  let rightElement = null;
-
-  if (isTeacher) {
-    rightElement = (
-      <Text
-        className="edit-text"
-        fontWeight="semibold"
-        fontSize="small"
-        color="gray.600"
-        display="none"
-      >
-        Edit
-      </Text>
-    );
-  } else {
-    rightElement = (
-      <Icon
-        as={isDone ? MdCheckCircle : VscCircleOutline}
-        color={isDone ? "green.600" : "gray.500"}
-        boxSize="6"
-      />
-    );
-  }
-
-  return (
-    <LinkBox
-      backgroundColor="gray.100"
-      borderRadius="lg"
-      _hover={{
-        backgroundColor: "gray.200",
-        ".edit-text": {
-          display: "block"
-        }
-      }}
-    >
-      <NextLink href={href} passHref>
-        <LinkOverlay>
-          <Flex
-            paddingLeft="2"
-            paddingRight="6"
-            paddingY="3"
-            alignItems="center"
-            justifyContent="space-between"
-            color="gray.800"
-          >
-            <Text
-              textDecoration="none"
-              marginLeft="2"
-              fontWeight="bold"
-              fontSize="lg"
-            >
-              {title}
-            </Text>
-            {rightElement}
-          </Flex>
-        </LinkOverlay>
-      </NextLink>
-    </LinkBox>
-  );
-}

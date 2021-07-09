@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
 async function getHandler(req, res) {
   try {
-    const {id: idClass, aid: activityId, tid: itemId} = req.query;
+    const {id: idClass, aid: activityId, userId} = req.query;
     const {idToken, refreshToken} = req.cookies;
     const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
     const userClass = await admin
@@ -61,26 +61,25 @@ async function getHandler(req, res) {
       });
     }
 
-    const taskItem = await activityRef
-      .collection("taskItems")
-      .doc(itemId)
-      .get();
+    let answers;
 
-    if (!taskItem.exists) {
-      const error = new HTTPNotFoundError(
-        "Item tidak  ditemukan tidak ditemukan"
-      );
-      return res.status(error.code).json({
-        ...error,
-        message: error.message
-      });
+    if (userId) {
+      answers = await activityRef
+        .collection("studentAnswers")
+        .doc(userId)
+        .collection("answers")
+        .get();
+    } else {
+      answers = await activityRef.collection("studentAnswers").get();
     }
+
+    const answersData = answers.docs.map(a => a.data());
 
     if (newIdToken !== null) {
       sendCookie({res}, "idToken", newIdToken);
     }
 
-    res.json(taskItem.data());
+    res.json(answersData);
   } catch (error) {
     console.log(error);
     if (error.code === 401) {
