@@ -3,49 +3,56 @@ import nookies from "nookies";
 import {stringify} from "querystring";
 
 import admin from "./firebase-admin";
-import {HTTPInternalServerError, HTTPUnauthorizedError} from "./errors";
+import {
+  HTTPBaseError,
+  HTTPMethodNotAllowedError,
+  HTTPUnauthorizedError
+} from "./errors";
 
 export function withMethod(handlerObj = {}) {
-  const allowedMethod = Object.keys(handlerObj);
-
   return async function (req, res) {
     if (handlerObj[req.method] !== undefined) {
       await handlerObj[req.method](req, res);
     } else {
+      const allowedMethod = Object.keys(handlerObj);
       res.setHeader("Allow", allowedMethod);
-      res.status(405).json({
-        error: {code: 405, message: `Method ${req.method} Not Allowed`}
-      });
+      throw new HTTPMethodNotAllowedError(`Method ${req.method} Not Allowed`);
+    }
+  };
+}
+
+export function withError(handler) {
+  return async function (req, res) {
+    try {
+      await handler(req, res);
+    } catch (error) {
+      if (error instanceof HTTPBaseError) {
+        return res.status(error.code).json({
+          error: {
+            status: error.status,
+            code: error.code,
+            message: error.message
+          }
+        });
+      }
+
+      res.status(500).json(error.message);
     }
   };
 }
 
 export function withAuth(handler) {
   return async function (req, res) {
-    try {
-      const {idToken, refreshToken} = req.cookies;
-      const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
-      req.authenticatedUser = user;
+    const {idToken, refreshToken} = req.cookies;
+    const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
+    req.authenticatedUser = user;
 
-      if (newIdToken !== null) {
-        sendCookie({res}, "idToken", newIdToken);
-      }
-
-      await handler(req, res);
-    } catch (error) {
-      if (error.code === 401) {
-        return res
-          .status(error.code)
-          .json({error: {status: error.status, message: error.message}});
-      }
-
-      const errorData = new HTTPInternalServerError(
-        "Upsss ada kesalahan saat memproses request"
-      );
-      res
-        .status(errorData.code)
-        .json({error: {...errorData, message: errorData.message}});
+    if (newIdToken !== null) {
+      sendCookie({res}, "refreshToken", refreshToken, 30 * 24 * 60 * 60);
+      sendCookie({res}, "idToken", newIdToken, 60 * 60);
     }
+
+    await handler(req, res);
   };
 }
 
@@ -72,15 +79,7 @@ export async function verifyIdentity(idToken, refreshToken) {
       return [user, data.id_token];
     }
 
-    const errorData = new HTTPUnauthorizedError(
-      "Operasi membutuhkan terauthentikasi"
-    );
-
-    throw {
-      code: errorData.code,
-      status: errorData.status,
-      message: errorData.message
-    };
+    throw new HTTPUnauthorizedError("Operasi membutuhkan terauthentikasi");
   }
 }
 

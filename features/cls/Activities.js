@@ -35,6 +35,7 @@ import CreateTaskModal from "./CreateTaskModal";
 import ErrorFallback from "./ErrorFallback";
 import ConfirmationPrompt from "./ConfirmationPrompt";
 import EditTaskModal from "./EditTaskModal";
+import formatTimestamp from "utils/formatTimestamp";
 
 const MODAL_TYPE = {
   NONE: 0,
@@ -180,7 +181,7 @@ export default function Activities({cls}) {
                     <Task
                       key={activity.id}
                       title={activity.title}
-                      timestamp={timestamp}
+                      timestamp={formatTimestamp(timestamp)}
                       url={`/c/${router.query.cid}/${activity.id}`}
                       isTeacher={cls.isTeacher ? true : false}
                       onEdit={() =>

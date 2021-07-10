@@ -25,13 +25,13 @@ const errors = {
   }
 };
 
-class BaseError extends Error {
+export class HTTPBaseError extends Error {
   constructor(message) {
     super(message);
   }
 }
 
-export class HTTPNotFoundError extends BaseError {
+export class HTTPNotFoundError extends HTTPBaseError {
   constructor(message) {
     super(message);
     this.code = errors.NOT_FOUND.code;
@@ -39,7 +39,7 @@ export class HTTPNotFoundError extends BaseError {
   }
 }
 
-export class HTTPBadRequestError extends BaseError {
+export class HTTPBadRequestError extends HTTPBaseError {
   constructor(message) {
     super(message);
     this.code = errors.BAD_REQUEST.code;
@@ -47,7 +47,7 @@ export class HTTPBadRequestError extends BaseError {
   }
 }
 
-export class HTTPForbiddenError extends BaseError {
+export class HTTPForbiddenError extends HTTPBaseError {
   constructor(message) {
     super(message);
     this.code = errors.FORBIDDEN.code;
@@ -55,7 +55,7 @@ export class HTTPForbiddenError extends BaseError {
   }
 }
 
-export class HTTPUnauthorizedError extends BaseError {
+export class HTTPUnauthorizedError extends HTTPBaseError {
   constructor(message) {
     super(message);
     this.code = errors.UNAUTHORIZED.code;
@@ -63,7 +63,7 @@ export class HTTPUnauthorizedError extends BaseError {
   }
 }
 
-export class HTTPMethodNotAllowedError extends BaseError {
+export class HTTPMethodNotAllowedError extends HTTPBaseError {
   constructor(message) {
     super(message);
     this.code = errors.METHOD_NOT_ALLOWED.code;
@@ -71,7 +71,7 @@ export class HTTPMethodNotAllowedError extends BaseError {
   }
 }
 
-export class HTTPInternalServerError extends BaseError {
+export class HTTPInternalServerError extends HTTPBaseError {
   constructor(message) {
     super(message);
     this.code = errors.INTERNAL_SERVER_ERROR.code;
