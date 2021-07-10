@@ -1,6 +1,14 @@
 import * as React from "react";
 import {useRouter} from "next/router";
-import {Button, Flex, Stack, useDisclosure, Icon} from "@chakra-ui/react";
+import {
+  Button,
+  Flex,
+  Stack,
+  useDisclosure,
+  Icon,
+  Box,
+  Text
+} from "@chakra-ui/react";
 import {VscCircleOutline} from "react-icons/vsc";
 import {MdCheckCircle, MdAdd} from "react-icons/md";
 
@@ -70,7 +78,9 @@ export default function TaskItemList() {
 
   if (taskItems.data && taskAnswers.data) {
     const list = taskItems.data.map(i => {
-      const isAnswerExists = taskAnswers.data.find(a => a.taskItem.id === i.id);
+      const isAnswerExists = taskAnswers.data?.answers?.find(
+        a => a.taskItem.id === i.id
+      );
       let rightElement = null;
 
       if (isTeacher) {
@@ -117,7 +127,29 @@ export default function TaskItemList() {
             handleDeleteItem={handleDeleteItem}
           />
         ) : null}
-        <Stack marginTop="10" spacing="4">
+        {!isTeacher ? (
+          <Box
+            marginTop="6"
+            borderColor="gray.200"
+            borderWidth="1px"
+            borderStyle="solid"
+            padding="4"
+          >
+            {taskAnswers.data.feedback ? (
+              <React.Fragment>
+                <Text color="green.600" fontWeight="bold" fontSize="2xl">
+                  Nilai kamu: {taskAnswers.data.feedback.value}
+                </Text>
+                <Text color="gray.600" marginTop="2">
+                  {taskAnswers.data.feedback.message}
+                </Text>
+              </React.Fragment>
+            ) : (
+              <Text color="gray.200">Belum ada nilai untuk kamu</Text>
+            )}
+          </Box>
+        ) : null}
+        <Stack marginTop="6" spacing="4">
           {list}
           {isTeacher ? (
             <Button colorScheme="green" onClick={onCreate}>

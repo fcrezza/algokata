@@ -19,7 +19,8 @@ export default function ConfirmationPrompt(props) {
     successMessage,
     errorMessage,
     description,
-    onConfirmation
+    onConfirmation,
+    onSuccess = () => {}
   } = props;
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const cancelRef = React.useRef();
@@ -36,6 +37,7 @@ export default function ConfirmationPrompt(props) {
         title: successMessage,
         isClosable: true
       });
+      onSuccess();
     } catch (error) {
       setIsSubmitting(false);
       toast({
@@ -50,7 +52,7 @@ export default function ConfirmationPrompt(props) {
     <AlertDialog
       isOpen={isOpen}
       leastDestructiveRef={cancelRef}
-      onClose={onClose}
+      onClose={!isSubmitting ? onClose : () => {}}
     >
       <AlertDialogOverlay>
         <AlertDialogContent>
@@ -59,7 +61,7 @@ export default function ConfirmationPrompt(props) {
           </AlertDialogHeader>
           <AlertDialogBody>{description}</AlertDialogBody>
           <AlertDialogFooter>
-            <Button ref={cancelRef} onClick={onClose}>
+            <Button ref={cancelRef} onClick={onClose} isDisabled={isSubmitting}>
               Batal
             </Button>
             <Button

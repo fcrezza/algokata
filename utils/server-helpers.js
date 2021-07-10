@@ -91,13 +91,18 @@ export function sendCookie(ctx, name, value, expires) {
   });
 }
 
-export async function batchWrite(snapshot, value) {
+export async function batchWrite(snapshot, value, type = "set") {
   const batchArray = [admin.firestore().batch()];
   let operationCounter = 0;
   let batchIndex = 0;
 
   snapshot.forEach(d => {
-    batchArray[batchIndex].set(d.ref, value, {merge: true});
+    if (type === "set") {
+      batchArray[batchIndex].set(d.ref, value, {merge: true});
+    } else if (type === "delete") {
+      batchArray[batchIndex].delete(d.ref);
+    }
+
     operationCounter++;
 
     if (operationCounter === 499) {

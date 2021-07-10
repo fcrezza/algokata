@@ -122,6 +122,7 @@ async function postHandler(req, res) {
     t.set(newAnswerRef, {
       id: newAnswerRef.id,
       solutionCode,
+      taskId: activity.id,
       taskItem: {
         id: taskItem.id,
         title: taskItem.title

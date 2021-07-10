@@ -12,43 +12,32 @@ import {
   FormLabel,
   Text,
   Button,
-  useToast
+  useToast,
+  Textarea
 } from "@chakra-ui/react";
 
 export default function EditTaskModal(props) {
   const {isOpen, onClose, defaultTitle, defaultDescription, handleEditTask} =
     props;
-  const [title, setTitle] = React.useState(() => defaultTitle);
-  const [description, setDescription] = React.useState(
-    () => defaultDescription
-  );
+  const [title, setTitle] = React.useState(defaultTitle);
+  const [description, setDescription] = React.useState(defaultDescription);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState(null);
   const toast = useToast();
   const isSame = title === defaultTitle && description === defaultDescription;
 
-  const closeModal = (
-    name = defaultTitle,
-    description = defaultDescription
-  ) => {
-    setError(null);
-    setTitle(name);
-    setDescription(description);
-    onClose();
-  };
-
   const onSubmit = async () => {
     try {
       setIsSubmitting(true);
       setError(null);
-      const newTaskData = await handleEditTask(title, description);
+      await handleEditTask(title, description);
       setIsSubmitting(false);
       toast({
         status: "success",
         title: "Perubahan berhasil disimpan",
         isClosable: true
       });
-      closeModal(newTaskData.title, newTaskData.description);
+      onClose();
     } catch (error) {
       setIsSubmitting(false);
       setError({message: "Upss, gagal menyimpan perubahan"});
@@ -56,7 +45,7 @@ export default function EditTaskModal(props) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={!isSubmitting ? closeModal : () => {}}>
+    <Modal isOpen={isOpen} onClose={!isSubmitting ? onClose : () => {}}>
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>Edit Kelas</ModalHeader>
@@ -68,7 +57,7 @@ export default function EditTaskModal(props) {
           </FormControl>
           <FormControl id="class-description" marginTop="6">
             <FormLabel>Deskripsi Kelas (optional)</FormLabel>
-            <Input
+            <Textarea
               onChange={e => setDescription(e.target.value)}
               value={description}
             />
@@ -82,6 +71,7 @@ export default function EditTaskModal(props) {
             colorScheme="green"
             isDisabled={title.length === 0 || isSubmitting || isSame}
             onClick={onSubmit}
+            isFullWidth
           >
             Simpan perubahan
           </Button>

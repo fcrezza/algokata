@@ -23,5 +23,5 @@ export function useFetchTaskAnswers() {
     !Array.isArray(data) && typeof error === "undefined" && shouldFetch;
   const isError = !Array.isArray(data) && typeof error !== "undefined";
 
-  return {data: data || [], error, mutate, isError, isLoading};
+  return {data: data || {}, error, mutate, isError, isLoading};
 }
