@@ -22,7 +22,7 @@ import React from "react";
 import {GoKebabVertical} from "react-icons/go";
 
 import {Loader} from "components/Loader";
-import ErrorFallback from "features/cls/ErrorFallback";
+import ErrorFallback from "components/ErrorFallback";
 import {useAuth} from "utils/auth";
 import ConfirmationPrompt from "components/ConfirmationPrompt";
 import axios from "axios";

@@ -12,7 +12,8 @@ import {
   FormLabel,
   Text,
   Button,
-  useToast
+  useToast,
+  Textarea
 } from "@chakra-ui/react";
 
 export default function EditTaskModal(props) {
@@ -28,11 +29,11 @@ export default function EditTaskModal(props) {
   const isSame = title === defaultTitle && description === defaultDescription;
 
   const closeModal = (
-    name = defaultTitle,
+    title = defaultTitle,
     description = defaultDescription
   ) => {
     setError(null);
-    setTitle(name);
+    setTitle(title);
     setDescription(description);
     onClose();
   };
@@ -43,15 +44,19 @@ export default function EditTaskModal(props) {
       setError(null);
       const newTaskData = await handleEditTask(title, description);
       setIsSubmitting(false);
+      closeModal(newTaskData.title, newTaskData.description);
       toast({
         status: "success",
         title: "Perubahan berhasil disimpan",
         isClosable: true
       });
-      closeModal(newTaskData.title, newTaskData.description);
     } catch (error) {
       setIsSubmitting(false);
-      setError({message: "Upss, gagal menyimpan perubahan"});
+      if (error.response) {
+        setError({message: error.response.data.error.message});
+      } else {
+        setError({message: "Upss, gagal menyimpan perubahan"});
+      }
     }
   };
 
@@ -68,7 +73,7 @@ export default function EditTaskModal(props) {
           </FormControl>
           <FormControl id="class-description" marginTop="6">
             <FormLabel>Deskripsi Kelas (optional)</FormLabel>
-            <Input
+            <Textarea
               onChange={e => setDescription(e.target.value)}
               value={description}
             />
@@ -82,6 +87,7 @@ export default function EditTaskModal(props) {
             colorScheme="green"
             isDisabled={title.length === 0 || isSubmitting || isSame}
             onClick={onSubmit}
+            isFullWidth
           >
             Simpan perubahan
           </Button>

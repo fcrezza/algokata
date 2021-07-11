@@ -12,10 +12,10 @@ import {
 } from "@chakra-ui/react";
 
 import Activities from "./Activities";
-import ConfirmationPrompt from "./ConfirmationPrompt";
 import NotFound from "./NotFound";
-import ErrorFallback from "./ErrorFallback";
 import EditClassModal from "./EditClassModal";
+import ErrorFallback from "components/ErrorFallback";
+import ConfirmationPrompt from "components/ConfirmationPrompt";
 import Head from "components/Head";
 import {Loader} from "components/Loader";
 import {useAuth} from "utils/auth";
@@ -29,15 +29,12 @@ export default function ClassPage() {
 
   const onEditClass = async classData => {
     const {data: newClassData} = await axios.put(url, classData);
-    console.log(newClassData);
-    // change this after successfully update class
-    await mutate({...newClassData, isTeacher: true}, false);
+    await mutate(newClassData, false);
     return newClassData;
   };
 
   const onLeaveClass = async () => {
     await axios.delete(`/api/classes/${router.query.cid}/members/${user.id}`);
-    router.push("/home");
   };
 
   return (
@@ -50,6 +47,15 @@ export default function ClassPage() {
     >
       {(() => {
         if (!cls && error) {
+          if (error.response && error.response.data.error.code === 404) {
+            return (
+              <React.Fragment>
+                <Head title="404 Kelas Tidak ditemukan" />
+                <NotFound />
+              </React.Fragment>
+            );
+          }
+
           return (
             <ErrorFallback
               errorMessage="Upsss, Gagal memuat data"
@@ -58,14 +64,10 @@ export default function ClassPage() {
           );
         }
 
-        if (cls && Object.keys(cls).length > 0) {
+        if (cls) {
           return (
             <React.Fragment>
-              <Head
-                title={
-                  cls ? `Kelas - ${cls.name}` : "404 Kelas Tidak ditemukan"
-                }
-              />
+              <Head title={`Kelas - ${cls.name}`} />
               <Box
                 padding="6"
                 height="250px"
@@ -89,7 +91,7 @@ export default function ClassPage() {
                       onClose={onClose}
                       defaultName={cls.name}
                       defaultDescription={cls.description}
-                      handleSubmit={onEditClass}
+                      onEdit={onEditClass}
                     />
                     <CTAButton onClick={onOpen}>Pengaturan</CTAButton>
                   </React.Fragment>
@@ -100,9 +102,12 @@ export default function ClassPage() {
                       description="Anda akan tidak punya akses ke kelas ini dan akan dihapus dari
             daftar murid namun data anda tetap akan disimpan di kelas."
                       actionTitle="Keluar"
+                      successMessage="Kamu telah keluar kelas"
+                      errorMessage="Operasi gagal dilakukan"
                       isOpen={isOpen}
                       onClose={onClose}
                       onConfirmation={onLeaveClass}
+                      onSuccess={() => router.push("/home")}
                     />
                     <CTAButton onClick={onOpen}>Keluar Kelas</CTAButton>
                   </React.Fragment>
@@ -111,10 +116,6 @@ export default function ClassPage() {
               <Activities cls={cls} />
             </React.Fragment>
           );
-        }
-
-        if (cls && Object.keys(cls).length === 0) {
-          return <NotFound />;
         }
 
         if (!cls && !error) {

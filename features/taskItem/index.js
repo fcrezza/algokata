@@ -11,6 +11,7 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   useDisclosure,
+  Text,
   Icon,
   useToast
 } from "@chakra-ui/react";
@@ -20,40 +21,51 @@ import "@uiw/react-markdown-preview/dist/markdown.css";
 import {Loader} from "components/Loader";
 import Head from "components/Head";
 import CodeEditor from "components/CodeEditor";
-import ErrorFallback from "./ErrorFallback";
+import ErrorFallback from "components/ErrorFallback";
 import ActionButton from "./ActionButton";
 import ResetEditorDialog from "./ResetEditorDialog";
 import ValidationResultModal from "./ValidationResultModal";
+import {useAuth} from "utils/auth";
+
+function fetcher(taskItemUrl, taskAnswersUrl) {
+  const taskItem = axios.get(taskItemUrl);
+  const taskAnswers = axios.get(taskAnswersUrl);
+  return Promise.all([taskItem, taskAnswers]).then(res => res.map(r => r.data));
+}
 
 export default function TaskItem() {
   const router = useRouter();
+  const {user} = useAuth();
   const {cid: classId, tid: taskId, tiid: taskItemId} = router.query;
-  const url = `/api/classes/${classId}/activities/${taskId}/${taskItemId}`;
-  const {data: itemData, error, mutate} = useSWR(url);
+  const {data, error, mutate} = useSWR(
+    [
+      `/api/classes/${classId}/activities/${taskId}/items?itemId=${taskItemId}`,
+      `/api/classes/${classId}/activities/${taskId}/answers?userId=${user.id}`
+    ],
+    fetcher
+  );
   const [solutionCode, setSolutionCode] = React.useState("");
   const [validationResult, setValidationResult] = React.useState(null);
-  const {
-    isOpen: isDialogOpen,
-    onClose: onDialogClose,
-    onOpen: onDialogOpen
-  } = useDisclosure();
-  const iframeRef = React.useRef();
+  const {isOpen, onClose, onOpen} = useDisclosure();
   const toast = useToast();
+  const iframeRef = React.useRef();
 
   const handleConfirmDialog = () => {
     setSolutionCode("");
-    onDialogClose();
+    onClose();
   };
 
   const handleRun = () => {
+    const [taskItem] = data;
     iframeRef.current.contentWindow.postMessage(
-      `${solutionCode}\n\n${itemData.testCode}`,
+      `${solutionCode}\n\n${taskItem.testCode}`,
       process.env.NEXT_PUBLIC_IFRAME_ORIGIN
     );
   };
 
   const saveAnswer = async () => {
     try {
+      const [taskItem] = data;
       const url = `/api/classes/${classId}/activities/${taskId}/answers`;
       const requestBody = {
         solutionCode,
@@ -62,8 +74,8 @@ export default function TaskItem() {
       await axios.post(url, requestBody);
       setSolutionCode("");
       setValidationResult(null);
-      if (itemData.next !== null) {
-        router.push(`/c/${classId}/${taskId}/${itemData.next.id}`);
+      if (taskItem.next !== null) {
+        router.push(`/c/${classId}/${taskId}/${taskItem.next.id}`);
       } else {
         router.push(`/c/${classId}/${taskId}`);
       }
@@ -91,22 +103,34 @@ export default function TaskItem() {
   return (
     <Container padding="0" maxWidth="full">
       {(() => {
-        if (!itemData && error) {
+        if (!data && error) {
+          if (error.response && error.response.data.error.code === 404) {
+            return (
+              <Text marginTop="8" color="gray.600" textAlign="center">
+                {error.response.data.error.message}
+              </Text>
+            );
+          }
+
           return (
-            <ErrorFallback
-              errorMessage="Upsss, Gagal memuat data"
-              onRetry={() => mutate(null)}
-            />
+            <Box marginTop="8">
+              <ErrorFallback
+                errorMessage="Upsss, Gagal memuat data"
+                onRetry={() => mutate(null)}
+              />
+            </Box>
           );
         }
 
-        if (itemData) {
+        if (data) {
+          const [taskItem, taskAnswers] = data;
+          const isDone = taskAnswers.find(a => a.taskItem.id === taskItem.id);
           return (
             <React.Fragment>
-              <Head title={`${itemData.title} - ${itemData.task.title}`} />
+              <Head title={`${taskItem.title} - ${taskItem.task.title}`} />
               <ResetEditorDialog
-                onClose={onDialogClose}
-                isOpen={isDialogOpen}
+                onClose={onClose}
+                isOpen={isOpen}
                 onConfirmation={handleConfirmDialog}
               />
               <ValidationResultModal
@@ -120,7 +144,7 @@ export default function TaskItem() {
                     <BreadcrumbItem>
                       <NextLink href={`/c/${router.query.cid}`} passHref>
                         <BreadcrumbLink color="green.500">
-                          {itemData.class.name}
+                          {taskItem.class.name}
                         </BreadcrumbLink>
                       </NextLink>
                     </BreadcrumbItem>
@@ -130,16 +154,16 @@ export default function TaskItem() {
                         passHref
                       >
                         <BreadcrumbLink color="green.500">
-                          {itemData.task.title}
+                          {taskItem.task.title}
                         </BreadcrumbLink>
                       </NextLink>
                     </BreadcrumbItem>
                   </Breadcrumb>
                   <Flex alignItems="center">
                     <Heading as="h3" color="gray.800" fontSize="3xl">
-                      {itemData.title}
+                      {taskItem.title}
                     </Heading>
-                    {itemData.isDone ? (
+                    {isDone ? (
                       <Icon
                         as={MdCheckCircle}
                         color={"green.600"}
@@ -149,20 +173,26 @@ export default function TaskItem() {
                     ) : null}
                   </Flex>
                   <Box marginY="4">
-                    <MDEditor.Markdown source={itemData.description} />
+                    <MDEditor.Markdown source={taskItem.description} />
                   </Box>
                   <ActionButton onClick={handleRun}>Jalankan Kode</ActionButton>
-                  <ActionButton onClick={onDialogOpen}>
+                  <ActionButton onClick={onOpen}>
                     Reset Kode Editor
                   </ActionButton>
-                  <ActionButton>Dapatkan Bantuan</ActionButton>
+                  <ActionButton
+                    as="a"
+                    href={`/d/${classId}/?taskItem=${taskItemId}`}
+                    target="_blank"
+                  >
+                    Dapatkan Bantuan
+                  </ActionButton>
                 </Box>
                 <Box width="50%">
                   <Box height="70%">
                     <CodeEditor
                       value={
                         solutionCode.length === 0
-                          ? itemData.solutionCode
+                          ? taskItem.solutionCode
                           : solutionCode
                       }
                       onChange={setSolutionCode}
@@ -172,7 +202,7 @@ export default function TaskItem() {
                   <Divider />
                   <Box height="30%">
                     <CodeEditor
-                      value={itemData.testCode}
+                      value={taskItem.testCode}
                       options={{
                         readOnly: "nocursor"
                       }}
@@ -190,8 +220,12 @@ export default function TaskItem() {
           );
         }
 
-        if (!itemData && !error) {
-          return <Loader />;
+        if (!data && !error) {
+          return (
+            <Box marginTop="8">
+              <Loader />
+            </Box>
+          );
         }
       })()}
     </Container>

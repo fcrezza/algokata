@@ -2,30 +2,26 @@ import React from "react";
 import axios from "axios";
 import useSWR from "swr";
 import {useRouter} from "next/router";
-import {BiChevronDown, BiInfoCircle, BiTask} from "react-icons/bi";
+import {BiChevronDown} from "react-icons/bi";
 import {
   Portal,
   VStack,
-  List,
-  ListItem,
-  ListIcon,
   MenuButton,
   MenuList,
   MenuItem,
   Menu,
-  Box,
   Text,
   Button,
-  Heading,
   Flex
 } from "@chakra-ui/react";
 
+import Empty from "./Empty";
 import AnnouncementCreatorModal from "./AnnouncementCreatorModal";
 import CreateTaskModal from "./CreateTaskModal";
-import ErrorFallback from "./ErrorFallback";
 import EditTaskModal from "./EditTaskModal";
 import AnnouncementItem from "./AnnouncementItem";
 import TaskItem from "./TaskItem";
+import ErrorFallback from "components/ErrorFallback";
 import ConfirmationPrompt from "components/ConfirmationPrompt";
 import {Loader} from "components/Loader";
 import formatTimestamp from "utils/formatTimestamp";
@@ -37,10 +33,10 @@ const MODAL_TYPE = {
 };
 
 export default function Activities({cls}) {
-  const [modal, setModal] = React.useState(MODAL_TYPE.NONE);
   const router = useRouter();
   const url = `/api/classes/${router.query.cid}/activities?order=desc`;
   const {data: activites, error, mutate} = useSWR(url);
+  const [modal, setModal] = React.useState(MODAL_TYPE.NONE);
   const [editTask, setEditTask] = React.useState(null);
   const [deleteActivity, setDeleteActivity] = React.useState(null);
 
@@ -49,8 +45,11 @@ export default function Activities({cls}) {
   };
 
   const onCreateTask = async taskData => {
-    await axios.post(url, taskData);
-    await mutate();
+    const {data} = await axios.post(
+      `/api/classes/${router.query.cid}/activities`,
+      taskData
+    );
+    await mutate(prevData => [data, ...prevData], false);
   };
 
   const onEditTask = async (title, description) => {
@@ -68,8 +67,12 @@ export default function Activities({cls}) {
   };
 
   const onCreateAnnouncement = async announcementData => {
-    await axios.post(url, announcementData);
-    await mutate();
+    const {data} = await axios.post(
+      `/api/classes/${router.query.cid}/activities`,
+      announcementData
+    );
+
+    await mutate(prevData => [data, ...prevData], false);
   };
 
   const onDeleteActivity = async () => {
@@ -91,7 +94,7 @@ export default function Activities({cls}) {
             <CreateTaskModal
               isOpen={modal === MODAL_TYPE.CREATE_TASK}
               onClose={onClose}
-              handleSubmit={onCreateTask}
+              onCreate={onCreateTask}
             />
             <EditTaskModal
               key={Boolean(editTask)}
@@ -104,7 +107,7 @@ export default function Activities({cls}) {
             <AnnouncementCreatorModal
               isOpen={modal === MODAL_TYPE.ANNOUNCEMENT}
               onClose={onClose}
-              handleSubmit={onCreateAnnouncement}
+              onCreate={onCreateAnnouncement}
             />
             <ConfirmationPrompt
               title={
@@ -142,8 +145,16 @@ export default function Activities({cls}) {
           </React.Fragment>
         ) : null}
       </Flex>
-      {(() => {
-        if (!cls && error) {
+      {(function () {
+        if (!activites && error) {
+          if (error.response && error.response.data.error.code === 404) {
+            return (
+              <Text color="gray.600" textAlign="center" marginTop="8">
+                {error.response.data.error.message}
+              </Text>
+            );
+          }
+
           return (
             <ErrorFallback
               errorMessage="Upsss, Gagal memuat data"
@@ -153,52 +164,54 @@ export default function Activities({cls}) {
         }
 
         if (activites && activites.length > 0) {
+          const activityList = activites.map(a => {
+            if (a.type === "announcement") {
+              return (
+                <AnnouncementItem
+                  key={a.id}
+                  title={a.title}
+                  message={a.message}
+                  timestamp={formatTimestamp(a.createdAt)}
+                  isTeacher={cls.isTeacher ? true : false}
+                  onDelete={() =>
+                    setDeleteActivity({
+                      id: a.id,
+                      type: "announcement"
+                    })
+                  }
+                />
+              );
+            }
+
+            if (a.type === "task") {
+              return (
+                <TaskItem
+                  key={a.id}
+                  title={a.title}
+                  timestamp={formatTimestamp(a.createdAt)}
+                  url={`/c/${router.query.cid}/${a.id}`}
+                  isTeacher={cls.isTeacher ? true : false}
+                  onDelete={() =>
+                    setDeleteActivity({
+                      id: a.id,
+                      type: "task"
+                    })
+                  }
+                  onEdit={() =>
+                    setEditTask({
+                      id: a.id,
+                      title: a.title,
+                      description: a.description
+                    })
+                  }
+                />
+              );
+            }
+          });
+
           return (
             <VStack marginTop="8" spacing="6" flex="1" alignItems="stretch">
-              {activites.map(activity => {
-                if (activity.type === "announcement") {
-                  return (
-                    <AnnouncementItem
-                      key={activity.id}
-                      title={activity.title}
-                      message={activity.message}
-                      timestamp={formatTimestamp(activity.createdAt)}
-                      isTeacher={cls.isTeacher ? true : false}
-                      onDelete={() =>
-                        setDeleteActivity({
-                          id: activity.id,
-                          type: "announcement"
-                        })
-                      }
-                    />
-                  );
-                }
-
-                if (activity.type === "task") {
-                  return (
-                    <TaskItem
-                      key={activity.id}
-                      title={activity.title}
-                      timestamp={formatTimestamp(activity.createdAt)}
-                      url={`/c/${router.query.cid}/${activity.id}`}
-                      isTeacher={cls.isTeacher ? true : false}
-                      onDelete={() =>
-                        setDeleteActivity({
-                          id: activity.id,
-                          type: "task"
-                        })
-                      }
-                      onEdit={() =>
-                        setEditTask({
-                          id: activity.id,
-                          title: activity.title,
-                          description: activity.description
-                        })
-                      }
-                    />
-                  );
-                }
-              })}
+              {activityList}
             </VStack>
           );
         }
@@ -213,35 +226,4 @@ export default function Activities({cls}) {
       })()}
     </React.Fragment>
   );
-}
-
-function Empty({isTeacher}) {
-  if (isTeacher) {
-    return (
-      <Box
-        marginTop="8"
-        padding="6"
-        borderRadius="lg"
-        borderColor="gray.300"
-        borderWidth="1px"
-        borderStyle="solid"
-      >
-        <Heading as="h3" color="green.600" fontWeight="medium" fontSize="2xl">
-          Mulai interaksi dengan murid di kelas anda
-        </Heading>
-        <List marginTop="6" spacing="3">
-          <ListItem color="gray.600">
-            <ListIcon as={BiInfoCircle} fontSize="20px" />
-            Buat pengumuman untuk memberitahu info penting
-          </ListItem>
-          <ListItem color="gray.600">
-            <ListIcon as={BiTask} fontSize="20px" />
-            Buat tugas untuk murid anda
-          </ListItem>
-        </List>
-      </Box>
-    );
-  }
-
-  return <div>tidak ada apa-apa disini</div>;
 }

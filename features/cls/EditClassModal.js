@@ -14,41 +14,50 @@ import {
   IconButton,
   Tooltip,
   Text,
-  Button
+  Button,
+  useToast
 } from "@chakra-ui/react";
 
 export default function EditClassModal(props) {
-  const {isOpen, onClose, defaultName, defaultDescription, handleSubmit} =
-    props;
+  const {isOpen, onClose, defaultName, defaultDescription, onEdit} = props;
   const [className, setClassName] = React.useState(defaultName);
   const [classDescription, setClassDescription] =
     React.useState(defaultDescription);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState(null);
-
+  const toast = useToast();
   const isSame =
     className === defaultName && classDescription === defaultDescription;
 
-  const closeModal = (name = defaultName, description = defaultDescription) => {
+  const closeModal = () => {
     setError(null);
-    setClassName(name);
-    setClassDescription(description);
     onClose();
   };
 
-  const onSubmit = async () => {
+  const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
       setError(null);
-      const newClassData = await handleSubmit({
+      const {name, description} = await onEdit({
         className,
         classDescription
       });
       setIsSubmitting(false);
-      closeModal(newClassData.name, newClassData.description);
+      setClassName(name);
+      setClassDescription(description);
+      closeModal();
+      toast({
+        title: "Perubahan berhasil disimpan",
+        status: "success",
+        isClosable: true
+      });
     } catch (error) {
       setIsSubmitting(false);
-      setError({message: "Upss, gagal menyimpan perubahan"});
+      if (error.response) {
+        setError({message: error.response.data.error.message});
+      } else {
+        setError({message: "Upss, gagal menyimpan perubahan"});
+      }
     }
   };
 
@@ -88,7 +97,7 @@ export default function EditClassModal(props) {
           <Button
             colorScheme="green"
             isDisabled={className.length === 0 || isSubmitting || isSame}
-            onClick={onSubmit}
+            onClick={handleSubmit}
           >
             Simpan perubahan
           </Button>

@@ -1,31 +1,35 @@
-import {HTTPMethodNotAllowedError} from "utils/errors";
 import admin from "utils/firebase-admin";
-import {sendCookie, verifyIdentity} from "utils/server-helpers";
+import {
+  sendCookie,
+  verifyIdentity,
+  withError,
+  withMethod
+} from "utils/server-helpers";
 
-export default async function handler(req, res) {
-  if (req.method === "GET") {
-    try {
-      const {idToken, refreshToken} = req.cookies;
-      const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
-      const userData = await admin
-        .firestore()
-        .collection("users")
-        .doc(user.user_id)
-        .get();
+const objHandler = {
+  GET: handler
+};
 
-      if (newIdToken !== null) {
-        sendCookie({res}, "idToken", newIdToken);
-      }
+async function handler(req, res) {
+  try {
+    const {idToken, refreshToken} = req.cookies;
+    const [user, newIdToken] = await verifyIdentity(idToken, refreshToken);
+    const userSnapshot = await admin
+      .firestore()
+      .collection("users")
+      .doc(user.user_id)
+      .get();
 
-      res.json({...userData.data()});
-    } catch (err) {
-      res.json({});
+    if (newIdToken !== null) {
+      sendCookie({res}, "refreshToken", refreshToken, 30 * 24 * 60 * 60);
+      sendCookie({res}, "idToken", newIdToken, 60 * 60);
     }
-  } else {
-    const error = new HTTPMethodNotAllowedError(
-      `Method ${req.method} Not Allowed`
-    );
-    res.setHeader("Allow", ["GET"]);
-    res.status(error.code).json(error);
+
+    const userData = userSnapshot.data();
+    res.json(userData);
+  } catch (err) {
+    res.json({});
   }
 }
+
+export default withError(withMethod(objHandler));

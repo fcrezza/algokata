@@ -28,27 +28,17 @@ async function getHandler(req, res) {
   const activity = await activityRef.get();
 
   if (!activity.exists) {
-    throw new HTTPNotFoundError("Aktivitas tidak ditemukan tidak ditemukan");
+    throw new HTTPNotFoundError("Aktivitas tidak ditemukan");
   }
 
   if (userId) {
-    const author = await activityRef
-      .collection("studentAnswers")
-      .doc(userId)
-      .get();
-
-    if (!author.exists) {
-      throw new HTTPNotFoundError("Data tidak ditemukan tidak ditemukan");
-    }
-
-    const authorData = author.data();
     const answers = await activityRef
       .collection("studentAnswers")
       .doc(userId)
       .collection("answers")
       .get();
     const answersData = answers.docs.map(a => a.data());
-    return res.json({...authorData, answers: answersData});
+    return res.json(answersData);
   }
 
   const answers = await activityRef.collection("studentAnswers").get();
@@ -115,6 +105,7 @@ async function postHandler(req, res) {
         id: userData.id,
         fullname: userData.fullname,
         avatar: userData.avatar,
+        value: null,
         createdAt: new Date().toISOString()
       });
     }

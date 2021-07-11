@@ -31,7 +31,8 @@ import {
   FormLabel,
   FormErrorMessage,
   useDisclosure,
-  useToast
+  useToast,
+  Textarea
 } from "@chakra-ui/react";
 import {MdAdd} from "react-icons/md";
 
@@ -191,7 +192,11 @@ function CreateClassModal({isOpen, onClose}) {
       router.push(`/c/${cls.id}`);
     } catch (error) {
       setIsSubmitting(false);
-      setError({message: "Upss, gagal membuat kelas"});
+      if (error.response) {
+        setError(error.response.data.error);
+      } else {
+        setError({message: "Upss, gagal membuat kelas"});
+      }
     }
   };
 
@@ -218,7 +223,7 @@ function CreateClassModal({isOpen, onClose}) {
           </FormControl>
           <FormControl id="class-description" marginTop="6">
             <FormLabel>Deskripsi Kelas (optional)</FormLabel>
-            <Input
+            <Textarea
               onChange={e => setClassDescription(e.target.value)}
               value={classDescription}
             />
@@ -243,6 +248,7 @@ function CreateClassModal({isOpen, onClose}) {
 }
 
 function JoinClassModal({isOpen, onClose}) {
+  const {user} = useAuth();
   const [classCode, setClassCode] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState(null);
@@ -252,7 +258,9 @@ function JoinClassModal({isOpen, onClose}) {
     try {
       setIsSubmitting(true);
       setError(null);
-      const {data: cls} = await axios.get(`/api/classes/${classCode}/join`);
+      const {data: cls} = await axios.post(`/api/users/${user.id}/classes`, {
+        classCode
+      });
       setIsSubmitting(false);
       onClose();
       router.push(`/c/${cls.id}`);

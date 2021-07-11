@@ -11,36 +11,47 @@ import {
   Button,
   FormControl,
   FormLabel,
-  Input
+  Input,
+  Textarea,
+  useToast
 } from "@chakra-ui/react";
 
-export default function CreateTaskModal({isOpen, onClose, handleSubmit}) {
-  const [taskName, setTitle] = React.useState("");
-  const [taskDescription, setTaskDescription] = React.useState("");
+export default function CreateTaskModal({isOpen, onClose, onCreate}) {
+  const [title, setTitle] = React.useState("");
+  const [description, setDescription] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState(null);
+  const toast = useToast();
 
   const closeModal = () => {
     setError(null);
     setTitle("");
-    setTaskDescription("");
+    setDescription("");
     onClose();
   };
 
-  const onSubmit = async () => {
+  const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
       setError(null);
-      await handleSubmit({
-        title: taskName,
-        description: taskDescription,
+      await onCreate({
+        title,
+        description,
         type: "task"
       });
       setIsSubmitting(false);
       closeModal();
+      toast({
+        status: "success",
+        title: "Tugas berhasil dibuat",
+        isClosable: true
+      });
     } catch (error) {
-      setIsSubmitting(false);
-      setError({message: "Upss, gagal membuat tugas"});
+      if (error.response) {
+        setError({message: error.response.data.error.message});
+      } else {
+        setError({message: "Upss, gagal melakukan operasi"});
+      }
     }
   };
 
@@ -53,13 +64,13 @@ export default function CreateTaskModal({isOpen, onClose, handleSubmit}) {
         <ModalBody>
           <FormControl id="task-name" isRequired>
             <FormLabel>Nama Tugas</FormLabel>
-            <Input onChange={e => setTitle(e.target.value)} value={taskName} />
+            <Input onChange={e => setTitle(e.target.value)} value={title} />
           </FormControl>
           <FormControl id="task-description" marginTop="6">
             <FormLabel>Deskripsi Tugas (optional)</FormLabel>
-            <Input
-              onChange={e => setTaskDescription(e.target.value)}
-              value={taskDescription}
+            <Textarea
+              onChange={e => setDescription(e.target.value)}
+              value={description}
             />
           </FormControl>
           <Text color="red.500" fontSize="sm" marginTop="2">
@@ -69,8 +80,8 @@ export default function CreateTaskModal({isOpen, onClose, handleSubmit}) {
         <ModalFooter>
           <Button
             colorScheme="green"
-            isDisabled={taskName.length === 0 || isSubmitting}
-            onClick={onSubmit}
+            isDisabled={title.length === 0 || isSubmitting}
+            onClick={handleSubmit}
             isFullWidth
           >
             Buat

@@ -5,6 +5,7 @@ import {stringify} from "querystring";
 import admin from "./firebase-admin";
 import {
   HTTPBaseError,
+  HTTPInternalServerError,
   HTTPMethodNotAllowedError,
   HTTPUnauthorizedError
 } from "./errors";
@@ -36,7 +37,14 @@ export function withError(handler) {
         });
       }
 
-      res.status(500).json(error.message);
+      const internalError = new HTTPInternalServerError(error.message);
+      res.status(internalError.code).json({
+        error: {
+          status: internalError.status,
+          code: internalError.code,
+          message: internalError.message
+        }
+      });
     }
   };
 }
@@ -56,12 +64,12 @@ export function withAuth(handler) {
   };
 }
 
-export async function verifyIdentity(idToken, refreshToken) {
+export async function verifyIdentity(idToken = "", refreshToken = "") {
   try {
     const user = await admin.auth().verifyIdToken(idToken);
     return [user, null];
   } catch (error) {
-    if (error.code === "auth/id-token-expired") {
+    if (refreshToken.length > 0) {
       const {data} = await axios({
         url: "https://securetoken.googleapis.com/v1/token?key=AIzaSyAIiwCmIs3yKs9HbxNr5fH1iSSeo5LEJLU",
         method: "POST",
@@ -83,9 +91,9 @@ export async function verifyIdentity(idToken, refreshToken) {
   }
 }
 
-export function sendCookie(ctx, name, value, expires) {
+export function sendCookie(ctx, name, value, maxAge) {
   nookies.set(ctx, name, value, {
-    expires,
+    maxAge,
     path: "/",
     httpOnly: true
   });

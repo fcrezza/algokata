@@ -1,42 +1,36 @@
 import admin from "utils/firebase-admin";
-import {sendCookie} from "utils/server-helpers";
+import {sendCookie, withError, withMethod} from "utils/server-helpers";
 
-export default async function handler(req, res) {
-  if (req.method === "POST") {
-    try {
-      const {isNewUser, idToken, refreshToken} = req.body;
-      const {user_id, name, picture, email} = await admin
-        .auth()
-        .verifyIdToken(idToken);
+const objHandler = {
+  POST: handler
+};
 
-      if (isNewUser) {
-        await admin.firestore().collection("users").doc(user_id).create({
-          id: user_id,
-          email,
-          fullname: name,
-          avatar: picture,
-          role: null,
-          createdAt: new Date().toISOString()
-        });
-      }
+async function handler(req, res) {
+  const {isNewUser, idToken, refreshToken} = req.body;
+  const {user_id, name, picture, email} = await admin
+    .auth()
+    .verifyIdToken(idToken);
 
-      const user = await admin
-        .firestore()
-        .collection("users")
-        .doc(user_id)
-        .get();
-      sendCookie({res}, "idToken", idToken);
-      sendCookie({res}, "refreshToken", refreshToken);
-      res.json(user.data());
-    } catch (error) {
-      res
-        .status(500)
-        .json({error: {code: 500, message: "something went wrong"}});
-    }
-  } else {
-    res.setHeader("Allow", ["POST"]);
-    res.status(405).json({
-      error: {code: 405, message: `Method ${req.method} Not Allowed`}
+  if (isNewUser) {
+    await admin.firestore().collection("users").doc(user_id).create({
+      id: user_id,
+      email,
+      fullname: name,
+      avatar: picture,
+      role: null,
+      createdAt: new Date().toISOString()
     });
   }
+
+  const userSnapshot = await admin
+    .firestore()
+    .collection("users")
+    .doc(user_id)
+    .get();
+  const userData = userSnapshot.data();
+  sendCookie({res}, "idToken", idToken, 60 * 60);
+  sendCookie({res}, "refreshToken", refreshToken, 30 * 24 * 60 * 60);
+  res.json(userData);
 }
+
+export default withError(withMethod(objHandler));

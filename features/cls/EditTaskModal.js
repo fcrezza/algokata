@@ -40,7 +40,11 @@ export default function EditTaskModal(props) {
       onClose();
     } catch (error) {
       setIsSubmitting(false);
-      setError({message: "Upss, gagal menyimpan perubahan"});
+      if (error.response) {
+        setError({message: error.response.data.error.message});
+      } else {
+        setError({message: "Upss, gagal menyimpan perubahan"});
+      }
     }
   };
 

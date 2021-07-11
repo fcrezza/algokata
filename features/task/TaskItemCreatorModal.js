@@ -62,13 +62,13 @@ export default function TaskItemModal(props) {
     testCode: defaultTestCode
   } = defaultValues;
   const isEdit = Object.keys(defaultValues).length > 0;
-  const [title, setTitle] = React.useState(() => defaultTitle || "");
+  const [title, setTitle] = React.useState(defaultTitle || "");
   const [description, setDescription] = React.useState(
-    () => defaultDescription || ""
+    defaultDescription || ""
   );
-  const [testCode, setTestCode] = React.useState(() => defaultTestCode || "");
+  const [testCode, setTestCode] = React.useState(defaultTestCode || "");
   const [solutionCode, setSolutionCode] = React.useState(
-    () => defaultSolutionCode || ""
+    defaultSolutionCode || ""
   );
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [validationResult, setValidationResult] = React.useState(null);

@@ -1,14 +1,8 @@
 import * as React from "react";
 import {useRouter} from "next/router";
-import {
-  Button,
-  Flex,
-  Stack,
-  useDisclosure,
-  Icon,
-  Box,
-  Text
-} from "@chakra-ui/react";
+import axios from "axios";
+import useSWR from "swr";
+import {Button, Flex, Stack, useDisclosure, Icon} from "@chakra-ui/react";
 import {VscCircleOutline} from "react-icons/vsc";
 import {MdCheckCircle, MdAdd} from "react-icons/md";
 
@@ -17,70 +11,75 @@ import TaskItem from "./TaskItem";
 import ErrorFallback from "components/ErrorFallback";
 import {Loader} from "components/Loader";
 import {useAuth} from "utils/auth";
-import {useFetchTaskAnswers, useFetchTaskItems} from "./utils";
-import axios from "axios";
+
+function fetcher(taskItemsUrl, taskAnswersUrl) {
+  const taskItems = axios.get(taskItemsUrl);
+  const taskAnswers = taskAnswersUrl ? axios.get(taskAnswersUrl) : null;
+  return Promise.all([taskItems, taskAnswers]).then(res =>
+    res.map(r => r?.data)
+  );
+}
 
 export default function TaskItemList() {
   const {user} = useAuth();
   const router = useRouter();
-  const {isOpen, onClose, onOpen} = useDisclosure();
-  const [editValues, setEditValues] = React.useState({});
-  const taskItems = useFetchTaskItems();
-  const taskAnswers = useFetchTaskAnswers();
   const isTeacher = user?.role === "teacher";
-
-  function retry() {
-    if (taskItems.isError) {
-      taskItems.mutate(null);
-    } else if (taskAnswers.isError) {
-      taskAnswers.mutate(null);
-    }
-  }
+  const {isOpen, onClose, onOpen} = useDisclosure();
+  const [editValues, setEditValues] = React.useState(null);
+  const {data, error, mutate} = useSWR(
+    [
+      `/api/classes/${router.query.cid}/activities/${router.query.tid}/items`,
+      !isTeacher
+        ? `/api/classes/${router.query.cid}/activities/${router.query.tid}/answers?userId=${user.id}`
+        : null
+    ],
+    fetcher
+  );
 
   function onEdit(item) {
     setEditValues(item);
     onOpen();
   }
 
-  function onCreate() {
-    setEditValues({});
-    onOpen();
+  function closeModal() {
+    onClose();
+    if (editValues) {
+      setEditValues(null);
+    }
   }
 
   async function handleCreateItem(formData) {
-    const url = `/api/classes/${router.query.cid}/activities/${router.query.tid}`;
+    const url = `/api/classes/${router.query.cid}/activities/${router.query.tid}/items`;
     await axios.post(url, formData);
-    await taskItems.mutate();
+    await mutate();
   }
 
   async function handleDeleteItem() {
     const url = `/api/classes/${router.query.cid}/activities/${router.query.tid}/items?itemId=${editValues.id}`;
     await axios.delete(url);
-    await taskItems.mutate();
+    await mutate();
   }
 
   async function handleSaveChanges(formData) {
     const url = `/api/classes/${router.query.cid}/activities/${router.query.tid}/items?itemId=${editValues.id}`;
     await axios.put(url, formData);
-    await taskItems.mutate();
+    await mutate();
   }
 
-  if (taskItems.isError || taskAnswers.isError) {
+  if (!data && error) {
     return (
       <Flex marginTop="10" justifyContent="center">
         <ErrorFallback
           errorMessage="Upsss, Gagal memuat data"
-          onRetry={retry}
+          onRetry={() => mutate(null)}
         />
       </Flex>
     );
   }
 
-  if (taskItems.data && taskAnswers.data) {
-    const list = taskItems.data.map(i => {
-      const isAnswerExists = taskAnswers.data?.answers?.find(
-        a => a.taskItem.id === i.id
-      );
+  if (data) {
+    const [taskItems, taskAnswers] = data;
+    const list = taskItems.map(i => {
       let rightElement = null;
 
       if (isTeacher) {
@@ -96,6 +95,7 @@ export default function TaskItemList() {
           </Button>
         );
       } else {
+        const isAnswerExists = taskAnswers.find(a => a.taskItem.id === i.id);
         rightElement = (
           <Icon
             as={isAnswerExists ? MdCheckCircle : VscCircleOutline}
@@ -117,42 +117,19 @@ export default function TaskItemList() {
 
     return (
       <React.Fragment>
-        {isOpen ? (
-          <TaskItemCreatorModal
-            isOpen={isOpen}
-            onClose={onClose}
-            defaultValues={editValues}
-            handleCreateItem={handleCreateItem}
-            handleSaveChanges={handleSaveChanges}
-            handleDeleteItem={handleDeleteItem}
-          />
-        ) : null}
-        {!isTeacher ? (
-          <Box
-            marginTop="6"
-            borderColor="gray.200"
-            borderWidth="1px"
-            borderStyle="solid"
-            padding="4"
-          >
-            {taskAnswers.data.feedback ? (
-              <React.Fragment>
-                <Text color="green.600" fontWeight="bold" fontSize="2xl">
-                  Nilai kamu: {taskAnswers.data.feedback.value}
-                </Text>
-                <Text color="gray.600" marginTop="2">
-                  {taskAnswers.data.feedback.message}
-                </Text>
-              </React.Fragment>
-            ) : (
-              <Text color="gray.200">Belum ada nilai untuk kamu</Text>
-            )}
-          </Box>
-        ) : null}
+        <TaskItemCreatorModal
+          key={Boolean(editValues)}
+          isOpen={isOpen}
+          onClose={closeModal}
+          defaultValues={editValues ?? {}}
+          handleCreateItem={handleCreateItem}
+          handleSaveChanges={handleSaveChanges}
+          handleDeleteItem={handleDeleteItem}
+        />
         <Stack marginTop="6" spacing="4">
           {list}
           {isTeacher ? (
-            <Button colorScheme="green" onClick={onCreate}>
+            <Button colorScheme="green" onClick={onOpen}>
               <MdAdd size="24" />
             </Button>
           ) : null}
@@ -161,7 +138,7 @@ export default function TaskItemList() {
     );
   }
 
-  if (taskItems.isLoading || taskAnswers.isLoading) {
+  if (!data && !error) {
     return (
       <Flex marginTop="10" justifyContent="center">
         <Loader />

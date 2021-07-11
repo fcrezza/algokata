@@ -53,6 +53,16 @@ export default function Task() {
     >
       {(() => {
         if (!activity && error) {
+          if (error.response && error.response.data.error.code === 404) {
+            return (
+              <React.Fragment>
+                <Head title="404 Tidak ditemukan" />
+                <Text color="gray.600" textAlign="center">
+                  {error.response.data.error.message}
+                </Text>
+              </React.Fragment>
+            );
+          }
           return (
             <ErrorFallback
               errorMessage="Upsss, Gagal memuat data"
@@ -64,11 +74,7 @@ export default function Task() {
         if (activity) {
           return (
             <React.Fragment>
-              <Head
-                title={
-                  activity ? `Kelas - ${activity.title}` : "404 Tidak ditemukan"
-                }
-              />
+              <Head title={`Kelas - ${activity.title}`} />
               {user.role === "teacher" ? (
                 <React.Fragment>
                   <EditTaskModal
@@ -116,3 +122,27 @@ export default function Task() {
     </Container>
   );
 }
+// {
+//   !isTeacher ? (
+//     <Box
+//       marginTop="6"
+//       borderColor="gray.200"
+//       borderWidth="1px"
+//       borderStyle="solid"
+//       padding="4"
+//     >
+//       {taskAnswers.data.feedback ? (
+//         <React.Fragment>
+//           <Text color="green.600" fontWeight="bold" fontSize="2xl">
+//             Nilai kamu: {taskAnswers.data.feedback.value}
+//           </Text>
+//           <Text color="gray.600" marginTop="2">
+//             {taskAnswers.data.feedback.message}
+//           </Text>
+//         </React.Fragment>
+//       ) : (
+//         <Text color="gray.200">Belum ada nilai untuk kamu</Text>
+//       )}
+//     </Box>
+//   ) : null;
+// }

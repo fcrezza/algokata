@@ -1,99 +1,92 @@
-import React from "react";
+import * as React from "react";
 import {
-  useToast,
   Modal,
-  ModalBody,
+  ModalOverlay,
   ModalContent,
-  CloseButton,
-  Flex,
-  Heading,
-  Box,
-  Button,
-  Textarea,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  ModalFooter,
+  Input,
   FormControl,
   FormLabel,
-  Input
+  Text,
+  Button,
+  Textarea,
+  useToast
 } from "@chakra-ui/react";
 
-export default function AnnouncementCreatorModal({
-  isOpen,
-  onClose,
-  handleSubmit
-}) {
+export default function CreateAnnouncementModal(props) {
+  const {isOpen, onClose, onCreate} = props;
   const [title, setTitle] = React.useState("");
   const [message, setMessage] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [error, setError] = React.useState(null);
   const toast = useToast();
 
   const closeModal = () => {
+    setError(null);
     setTitle("");
     setMessage("");
     onClose();
   };
 
-  const onSubmit = async () => {
+  const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
-      await handleSubmit({
-        title,
-        message,
-        type: "announcement"
-      });
+      setError(null);
+      await onCreate({title, message, type: "announcement"});
       setIsSubmitting(false);
       closeModal();
-    } catch (error) {
-      setIsSubmitting(false);
       toast({
-        status: "error",
-        title: `Upsss, gagal melakukan operasi`,
+        status: "success",
+        title: "Pengumuman berhasil dibuat",
         isClosable: true
       });
+    } catch (error) {
+      setIsSubmitting(false);
+      if (error.response) {
+        setError({message: error.response.data.error.message});
+      } else {
+        setError({message: "Upss, gagal melakukan operasi"});
+      }
     }
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      size="full"
-      onClose={!isSubmitting ? closeModal : () => {}}
-    >
-      <ModalContent margin="0">
-        <ModalBody padding="0">
-          <Flex
-            paddingY="3"
-            paddingX="6"
-            alignItems="center"
-            justifyContent="space-between"
-            borderBottomWidth="1px"
-            borderBottomColor="gray.100"
-            borderBottomStyle="solid"
-          >
-            <Flex alignItems="center">
-              <CloseButton borderRadius="50%" onClick={onClose} />
-              <Heading marginLeft="4" as="h3" fontSize="xl" color="gray.800">
-                Buat Pengumuman
-              </Heading>
-            </Flex>
-            <Button colorScheme="green" onClick={onSubmit}>
-              Kirim
-            </Button>
-          </Flex>
-          <Box padding="6">
-            <FormControl id="task-name">
-              <FormLabel>Judul</FormLabel>
-              <Input onChange={e => setTitle(e.target.value)} value={title} />
-            </FormControl>
-            <FormControl id="task-description" marginTop="6">
-              <FormLabel>Pesan</FormLabel>
-              <Textarea
-                value={message}
-                onChange={e => setMessage(e.target.value)}
-                resize="vertical"
-                size="lg"
-              />
-            </FormControl>
-          </Box>
+    <Modal isOpen={isOpen} onClose={!isSubmitting ? closeModal : () => {}}>
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Buat Pengumuman</ModalHeader>
+        <ModalCloseButton borderRadius="50%" isDisabled={isSubmitting} />
+        <ModalBody>
+          <FormControl id="title" isRequired>
+            <FormLabel>Judul</FormLabel>
+            <Input onChange={e => setTitle(e.target.value)} value={title} />
+          </FormControl>
+          <FormControl id="message" marginTop="6" isRequired>
+            <FormLabel>Pesan</FormLabel>
+            <Textarea
+              onChange={e => setMessage(e.target.value)}
+              value={message}
+            />
+          </FormControl>
+          <Text color="red.500" fontSize="sm" marginTop="2">
+            {error?.message}
+          </Text>
         </ModalBody>
+        <ModalFooter justifyContent="space-between">
+          <Button
+            colorScheme="green"
+            isDisabled={
+              title.length === 0 || message.length === 0 || isSubmitting
+            }
+            onClick={handleSubmit}
+            isFullWidth
+          >
+            Buat
+          </Button>
+        </ModalFooter>
       </ModalContent>
     </Modal>
   );
