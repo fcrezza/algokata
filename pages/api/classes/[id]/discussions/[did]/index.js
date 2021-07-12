@@ -1,30 +1,32 @@
 import admin from "utils/firebase-admin";
 import {HTTPForbiddenError, HTTPNotFoundError} from "utils/errors";
-import {withAuth, withMethod} from "utils/server-helpers";
+import {
+  batchWrite,
+  withAuth,
+  withError,
+  withMethod
+} from "utils/server-helpers";
 
 const handlerObj = {
   GET: getHandler,
   DELETE: deleteHandler
 };
+
 async function getHandler(req, res) {
   const {id: classId, did: discussionId} = req.query;
-  const userClassRef = admin
+  const userClassSnapshot = await admin
     .firestore()
     .collection("users")
     .doc(req.authenticatedUser.user_id)
     .collection("classes")
-    .doc(classId);
-  const cls = await userClassRef.get();
+    .doc(classId)
+    .get();
 
-  if (!cls.exists) {
-    const error = new HTTPNotFoundError("Kelas tidak ditemukan");
-    return res.status(error.code).json({
-      ...error,
-      message: error.message
-    });
+  if (!userClassSnapshot.exists) {
+    throw new HTTPNotFoundError("Kelas tidak ditemukan");
   }
 
-  const discussion = await admin
+  const discussionSnapshot = await admin
     .firestore()
     .collection("classes")
     .doc(classId)
@@ -32,33 +34,27 @@ async function getHandler(req, res) {
     .doc(discussionId)
     .get();
 
-  if (!discussion.exists) {
-    return res.json({});
+  if (!discussionSnapshot.exists) {
+    throw new HTTPNotFoundError("Diskusi tidak ditemukan");
   }
 
-  res.json(discussion.data());
+  const discussionData = discussionSnapshot.data();
+  res.json(discussionData);
 }
 
-// NOTE: Delete discussion don't delete its replies
+// NOTE: Delete discussion include delete its replies
 async function deleteHandler(req, res) {
   const {id: idClass, did: discussionId} = req.query;
-
-  const userClassRef = admin
+  const userClassSnapshot = await admin
     .firestore()
     .collection("users")
     .doc(req.authenticatedUser.user_id)
     .collection("classes")
-    .doc(idClass);
-  let cls = await userClassRef.get();
+    .doc(idClass)
+    .get();
 
-  if (!cls.exists) {
-    const error = new HTTPNotFoundError("Kelas tidak ditemukan");
-    return res.status(error.code).json({
-      error: {
-        ...error,
-        message: error.message
-      }
-    });
+  if (!userClassSnapshot.exists) {
+    throw new HTTPNotFoundError("Kelas tidak ditemukan");
   }
 
   const discussionRef = admin
@@ -67,32 +63,24 @@ async function deleteHandler(req, res) {
     .doc(idClass)
     .collection("discussions")
     .doc(discussionId);
-  const discussion = await discussionRef.get();
+  const discussionSnapshot = await discussionRef.get();
+  const discussionRepliesSnapshot = await discussionRef
+    .collection("replies")
+    .get();
 
-  if (!discussion.exists) {
-    const error = new HTTPNotFoundError("Diskusi tidak ditemukan");
-    return res.status(error.code).json({
-      error: {
-        ...error,
-        message: error.message
-      }
-    });
+  if (!discussionSnapshot.exists) {
+    throw new HTTPNotFoundError("Diskusi tidak ditemukan");
   }
 
-  const discussionData = discussion.data();
+  const discussionData = discussionSnapshot.data();
 
   if (req.authenticatedUser.user_id !== discussionData.author.id) {
-    const error = new HTTPForbiddenError("Operasi tidak diizinkan");
-    return res.status(error.code).json({
-      error: {
-        ...error,
-        message: error.message
-      }
-    });
+    throw new HTTPForbiddenError("Operasi tidak diizinkan");
   }
 
   await discussionRef.delete();
-  res.json({message: "Berhasil dihapus"});
+  await batchWrite(discussionRepliesSnapshot, null, "delete");
+  res.json({message: "Diskusi berhasil dihapus"});
 }
 
-export default withAuth(withMethod(handlerObj));
+export default withError(withAuth(withMethod(handlerObj)));

@@ -22,21 +22,6 @@ export default function ToCheck() {
   const {cid: classId} = router.query;
   const url = `/api/classes/${classId}/activities?type=task&order=desc`;
   const {data: tasks, error, mutate} = useSWR(url);
-  const taskList = [];
-
-  if (tasks) {
-    tasks.forEach(item => {
-      const task = (
-        <TaskItem
-          key={item.id}
-          title={item.title}
-          href={`${router.asPath}/${item.id}`}
-        />
-      );
-
-      taskList.push(task);
-    });
-  }
 
   return (
     <Container
@@ -49,6 +34,14 @@ export default function ToCheck() {
       <Head title="Untuk diperiksa - Algokata" />
       {(function () {
         if (!tasks && error) {
+          if (error.response && error.response.data.error.code === 404) {
+            return (
+              <Text color="gray.600" textAlign="center">
+                {error.response.data.error.message}
+              </Text>
+            );
+          }
+
           return (
             <ErrorFallback
               errorMessage="Upsss, Gagal memuat data"
@@ -57,7 +50,30 @@ export default function ToCheck() {
           );
         }
 
-        if (tasks && tasks.length > 0) {
+        if (tasks) {
+          const taskList = [];
+          tasks.forEach(item => {
+            const task = (
+              <TaskItem
+                key={item.id}
+                title={item.title}
+                href={`${router.asPath}/${item.id}`}
+              />
+            );
+
+            taskList.push(task);
+          });
+
+          if (taskList.length === 0) {
+            return (
+              <Flex justifyContent="center" alignContent="center">
+                <Text color="gray.600">
+                  Tidak ada tugas yang perlu diperiksa
+                </Text>
+              </Flex>
+            );
+          }
+
           return (
             <Box>
               <Heading
@@ -71,14 +87,6 @@ export default function ToCheck() {
               </Heading>
               <Stack spacing="4">{taskList}</Stack>
             </Box>
-          );
-        }
-
-        if (tasks && tasks.length === 0) {
-          return (
-            <Flex justifyContent="center" alignContent="center">
-              <Text color="gray.600">Tidak ada tugas yang perlu diperiksa</Text>
-            </Flex>
           );
         }
 

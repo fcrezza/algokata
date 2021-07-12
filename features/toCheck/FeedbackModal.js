@@ -19,16 +19,17 @@ import {
   NumberInputStepper
 } from "@chakra-ui/react";
 
-export default function FeedbackModal({isOpen, onClose, onSubmit}) {
-  const [value, setValue] = React.useState(0);
-  const [message, setMessage] = React.useState("");
+export default function FeedbackModal(props) {
+  const {isOpen, onClose, onSubmit, defaultValue, defaultMessage} = props;
+  const [value, setValue] = React.useState(defaultValue);
+  const [message, setMessage] = React.useState(defaultMessage);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState(null);
 
-  const closeModal = () => {
+  const closeModal = (value = defaultValue, message = defaultMessage) => {
     setError(null);
-    setValue(0);
-    setMessage("");
+    setValue(value);
+    setMessage(message);
     onClose();
   };
 
@@ -36,16 +37,16 @@ export default function FeedbackModal({isOpen, onClose, onSubmit}) {
     try {
       setIsSubmitting(true);
       setError(null);
-      await onSubmit(value, message);
+      const data = await onSubmit(value, message);
       setIsSubmitting(false);
-      closeModal();
+      closeModal(data.value, data.message);
     } catch (error) {
       setIsSubmitting(false);
       if (error.response) {
-        setError({message: error.response.data.error.message});
+        setError(error.response.data.error);
         return;
       }
-      setError({message: "Upss, gagal membuat tugas"});
+      setError({message: "Upss, operasi gagal dilakukan"});
     }
   };
 

@@ -22,23 +22,6 @@ export default function Task() {
   const {cid: classId, tid: taskId} = router.query;
   const url = `/api/classes/${classId}/activities/${taskId}/answers`;
   const {data: users, error, mutate} = useSWR(url);
-  const userList = [];
-
-  if (users) {
-    users.forEach(u => {
-      const task = (
-        <UserItem
-          key={u.id}
-          fullname={u.fullname}
-          avatar={u.avatar}
-          value={u.feedback ? u.feedback.value : "N/A"}
-          href={`${router.asPath}/${u.id}`}
-        />
-      );
-
-      userList.push(task);
-    });
-  }
 
   return (
     <Container
@@ -51,6 +34,14 @@ export default function Task() {
       <Head title="Untuk diperiksa - Algokata" />
       {(function () {
         if (!users && error) {
+          if (error.response && error.response.data.error.code === 404) {
+            return (
+              <Text color="gray.600" textAlign="center">
+                {error.response.data.error.message}
+              </Text>
+            );
+          }
+
           return (
             <ErrorFallback
               errorMessage="Upsss, Gagal memuat data"
@@ -60,6 +51,34 @@ export default function Task() {
         }
 
         if (users) {
+          const userList = [];
+
+          if (users) {
+            users.forEach(u => {
+              const task = (
+                <UserItem
+                  key={u.id}
+                  fullname={u.fullname}
+                  avatar={u.avatar}
+                  value={typeof u.value === "number" ? u.value : "N/A"}
+                  href={`${router.asPath}/${u.id}`}
+                />
+              );
+
+              userList.push(task);
+            });
+          }
+
+          if (userList.length === 0) {
+            return (
+              <Flex justifyContent="center" alignContent="center">
+                <Text color="gray.600">
+                  Belum ada yang mengumpulkan jawaban :)
+                </Text>
+              </Flex>
+            );
+          }
+
           return (
             <Box>
               <Flex

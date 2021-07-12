@@ -19,31 +19,51 @@ import ErrorFallback from "components/ErrorFallback";
 import {Loader} from "components/Loader";
 import axios from "axios";
 
+function fetcher(studentUrl, feedbackUrl, taskAnswersUrl) {
+  const student = axios.get(studentUrl);
+  const taskAnswers = axios.get(taskAnswersUrl);
+  const feedback = axios.get(feedbackUrl);
+
+  return Promise.all([student, feedback, taskAnswers])
+    .then(res => res.map(r => r.data))
+    .catch(e => {
+      if (
+        e.response &&
+        e.response.data.error.code === 404 &&
+        e.response.config.url === feedbackUrl
+      ) {
+        return Promise.all([student, null, taskAnswers]).then(res =>
+          res.map(r => r?.data)
+        );
+      }
+
+      throw e;
+    });
+}
+
 export default function UserAnswers() {
   const router = useRouter();
   const {cid: classId, tid: taskId, uid: userId} = router.query;
-  const url = `/api/classes/${classId}/activities/${taskId}/answers?userId=${userId}`;
-  const {data: answers, error, mutate} = useSWR(url);
-  const answerList = [];
+  const {data, mutate, error} = useSWR(
+    [
+      `/api/classes/${classId}/members/${userId}`,
+      `/api/classes/${classId}/activities/${taskId}/feedbacks?userId=${userId}`,
+      `/api/classes/${classId}/activities/${taskId}/answers?userId=${userId}`
+    ],
+    fetcher
+  );
   const {isOpen, onOpen, onClose} = useDisclosure();
 
   async function handleGiveFeedback(value, message) {
-    const {data} = await axios.put(url, {value, message});
-    await mutate(data, false);
-  }
-
-  if (answers) {
-    answers.answers.forEach(a => {
-      const task = (
-        <AnswerItem
-          key={a.id}
-          solutionCode={a.solutionCode}
-          title={a.taskItem.title}
-        />
-      );
-
-      answerList.push(task);
+    const [student, , answers] = data;
+    const url = `/api/classes/${classId}/activities/${taskId}/feedbacks`;
+    const {data: newData} = await axios.post(url, {
+      studentId: student.id,
+      value,
+      message
     });
+    await mutate([student, newData, answers], false);
+    return newData;
   }
 
   return (
@@ -55,12 +75,14 @@ export default function UserAnswers() {
       maxWidth="800px"
     >
       {(function () {
-        if (!answers && error) {
-          if (error?.response.data.error.code === 404) {
+        if (!data && error) {
+          if (error.response && error.response.data.error.code === 404) {
             return (
               <React.Fragment>
-                <Head title="Untuk diperiksa - data tidak ditemukan" />
-                <Text textAlign="center">Data tidak ditemukan</Text>
+                <Head title="Untuk diperiksa - 404 Tidak ditemukan" />
+                <Text textAlign="center" color="gray.600">
+                  {error.response.data.error.message}
+                </Text>
               </React.Fragment>
             );
           }
@@ -73,14 +95,25 @@ export default function UserAnswers() {
           );
         }
 
-        if (answers) {
+        if (data) {
+          const [student, feedback, answers] = data;
+          const answerList = answers.map(a => (
+            <AnswerItem
+              key={a.id}
+              solutionCode={a.solutionCode}
+              title={a.taskItem.title}
+            />
+          ));
+
           return (
             <React.Fragment>
-              <Head title={`Untuk diperiksa - Jawaban ${answers.fullname}`} />
+              <Head title={`Untuk diperiksa - Jawaban ${student.fullname}`} />
               <FeedbackModal
                 isOpen={isOpen}
                 onClose={onClose}
                 onSubmit={handleGiveFeedback}
+                defaultValue={feedback ? feedback.value : 0}
+                defaultMessage={feedback ? feedback.message : ""}
               />
               <Flex
                 justifyContent="space-between"
@@ -97,11 +130,11 @@ export default function UserAnswers() {
                   <Flex alignItems="center" marginTop="3">
                     <Avatar
                       size="sm"
-                      src={answers.avatar}
-                      name={answers.fullname}
+                      src={student.avatar}
+                      name={student.fullname}
                     />
                     <Text color="gray.600" marginLeft="3">
-                      {answers.fullname}
+                      {student.fullname}
                     </Text>
                   </Flex>
                 </Box>
@@ -116,27 +149,33 @@ export default function UserAnswers() {
                 borderColor="gray.200"
                 borderStyle="solid"
               >
-                {answers.feedback ? (
+                {feedback ? (
                   <React.Fragment>
                     <Text fontSize="2xl" fontWeight="bold" color="green.600">
-                      {answers.feedback.value}
+                      {feedback.value}
                     </Text>
                     <Text marginTop="3" color="gray.600">
-                      {answers.feedback.message}
+                      {feedback.message}
                     </Text>
                   </React.Fragment>
                 ) : (
                   <Text color="gray.600">Kamu belum memberikan penilaian</Text>
                 )}
               </Box>
-              <Stack spacing="8" marginTop="8">
-                {answerList}
-              </Stack>
+              {answerList.length > 0 ? (
+                <Stack spacing="8" marginTop="8">
+                  {answerList}
+                </Stack>
+              ) : (
+                <Text textAlign="center" color="gray.600" marginTop="8">
+                  Belum ada jawaban yang dikirim
+                </Text>
+              )}
             </React.Fragment>
           );
         }
 
-        if (!answers && !error) {
+        if (!data && !error) {
           return <Loader />;
         }
       })()}

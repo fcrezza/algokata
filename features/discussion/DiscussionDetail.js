@@ -47,21 +47,26 @@ function DiscussionDetail() {
                 justifyContent="center"
                 alignItems="center"
               >
-                <ErrorFallback
-                  errorMessage="Upsss, gagal memuat data"
-                  onRetry={() => mutate(null)}
-                />
+                {error.response && error.response.data.error.code === 404 ? (
+                  <Text color="gray.600" textAlign="center">
+                    {error.response.data.error.message}
+                  </Text>
+                ) : (
+                  <ErrorFallback
+                    errorMessage="Upsss, gagal memuat data"
+                    onRetry={() => mutate(null)}
+                  />
+                )}
               </Flex>
             );
           }
 
-          if (discussion && Object.keys(discussion).length > 0) {
+          if (discussion) {
             const timestamp = formatTimestamp(discussion.createdAt);
 
             return (
               <React.Fragment>
                 <Head title={`Diskusi - discussion.title`} />
-
                 <Box marginLeft="10" flex="1" width="100%">
                   <DiscussionItemDetail
                     title={discussion.title}
@@ -78,21 +83,6 @@ function DiscussionDetail() {
                   <DiscussionReplies total={discussion.repliesCount} />
                 </Box>
               </React.Fragment>
-            );
-          }
-
-          if (discussion && Object.keys(discussion).length === 0) {
-            return (
-              <Flex
-                marginLeft="10"
-                flex="1"
-                width="100%"
-                justifyContent="center"
-                alignItems="center"
-              >
-                <Head title="404 Diskusi tidak ditemukan" />
-                <Text color="gray.600">Diskusi tidak ditemukan</Text>
-              </Flex>
             );
           }
 

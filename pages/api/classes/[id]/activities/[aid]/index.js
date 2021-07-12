@@ -62,9 +62,11 @@ async function deleteHandler(req, res) {
     const studentAnswersSnapshot = await activityRef
       .collection("studentAnswers")
       .get();
+    const feedbacksSnapshot = await activityRef.collection("feedbacks").get();
     await batchWrite(taskItemsSnapshot, null, "delete");
     await batchWrite(studentAnswerItemsSnapshot, null, "delete");
     await batchWrite(studentAnswersSnapshot, null, "delete");
+    await batchWrite(feedbacksSnapshot, null, "delete");
     await activityRef.delete();
   } else {
     await activitySnapshot.ref.delete();

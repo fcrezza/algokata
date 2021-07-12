@@ -1,6 +1,6 @@
 import admin from "utils/firebase-admin";
 import {HTTPNotFoundError} from "utils/errors";
-import {withAuth, withMethod} from "utils/server-helpers";
+import {withAuth, withError, withMethod} from "utils/server-helpers";
 
 const handlerObj = {
   GET: getHandler,
@@ -16,23 +16,19 @@ async function getHandler(req, res) {
   // Temporary disable lint, this should be deleted when implement full search feature
   // eslint-disable-next-line
   const {id: classId, taskItemId = "", q} = req.query;
-  const userClassRef = admin
+  const userClassSnapshot = await admin
     .firestore()
     .collection("users")
     .doc(req.authenticatedUser.user_id)
     .collection("classes")
-    .doc(classId);
-  const cls = await userClassRef.get();
-  let classDiscussions;
+    .doc(classId)
+    .get();
 
-  if (!cls.exists) {
-    const error = new HTTPNotFoundError("Kelas tidak ditemukan");
-    return res.status(error.code).json({
-      ...error,
-      message: error.message
-    });
+  if (!userClassSnapshot.exists) {
+    throw new HTTPNotFoundError("Kelas tidak ditemukan");
   }
 
+  let classDiscussionsSnapshot;
   const classDiscussionsRef = admin
     .firestore()
     .collection("classes")
@@ -41,37 +37,33 @@ async function getHandler(req, res) {
     .orderBy("createdAt", "desc");
 
   if (taskItemId.length > 0) {
-    classDiscussions = await classDiscussionsRef
+    classDiscussionsSnapshot = await classDiscussionsRef
       .where("taskItem.id", "==", taskItemId)
       .get();
   } else {
-    classDiscussions = await classDiscussionsRef.get();
+    classDiscussionsSnapshot = await classDiscussionsRef.get();
   }
 
-  const classDiscussionsData = classDiscussions.docs.map(d => d.data());
+  const classDiscussionsData = classDiscussionsSnapshot.docs.map(d => d.data());
   res.json(classDiscussionsData);
 }
 
 async function postHandler(req, res) {
   const {title, description, taskItemId, taskId} = req.body;
   const {id: classId} = req.query;
-  const userClassRef = admin
+  const userClassSnapshot = await admin
     .firestore()
     .collection("users")
     .doc(req.authenticatedUser.user_id)
     .collection("classes")
-    .doc(classId);
-  const cls = await userClassRef.get();
+    .doc(classId)
+    .get();
 
-  if (!cls.exists) {
-    const error = new HTTPNotFoundError("Kelas tidak ditemukan");
-    return res.status(error.code).json({
-      ...error,
-      message: error.message
-    });
+  if (!userClassSnapshot.exists) {
+    throw new HTTPNotFoundError("Kelas tidak ditemukan");
   }
 
-  const taskItem = await admin
+  const taskItemsSnapshot = await admin
     .firestore()
     .collection("classes")
     .doc(classId)
@@ -81,21 +73,17 @@ async function postHandler(req, res) {
     .doc(taskItemId)
     .get();
 
-  if (!taskItem.exists) {
-    const error = new HTTPNotFoundError("Item tidak ditemukan");
-    return res.status(error.code).json({
-      ...error,
-      message: error.message
-    });
+  if (!taskItemsSnapshot.exists) {
+    throw new HTTPNotFoundError("Item tugas tidak ditemukan");
   }
 
-  const user = await admin
+  const userSnapshot = await admin
     .firestore()
     .collection("users")
     .doc(req.authenticatedUser.user_id)
     .get();
-  const userData = user.data();
-  const taskItemData = taskItem.data();
+  const userData = userSnapshot.data();
+  const taskItemData = taskItemsSnapshot.data();
   const newDiscussionRef = admin
     .firestore()
     .collection("classes")
@@ -118,8 +106,9 @@ async function postHandler(req, res) {
     },
     createdAt: new Date().toISOString()
   });
-  const newDiscussion = await newDiscussionRef.get();
-  res.json(newDiscussion.data());
+  const newDiscussionSnapshot = await newDiscussionRef.get();
+  const newDiscussionData = newDiscussionSnapshot.data();
+  res.json(newDiscussionData);
 }
 
-export default withAuth(withMethod(handlerObj));
+export default withError(withAuth(withMethod(handlerObj)));

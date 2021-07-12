@@ -1,10 +1,29 @@
 import admin from "utils/firebase-admin";
-import {HTTPForbiddenError} from "utils/errors";
+import {HTTPForbiddenError, HTTPNotFoundError} from "utils/errors";
 import {withAuth, withError, withMethod} from "utils/server-helpers";
 
 const objHandler = {
-  DELETE: deleteHandler
+  DELETE: deleteHandler,
+  GET: getHandler
 };
+
+async function getHandler(req, res) {
+  const {id: idClass, mid: idStudent} = req.query;
+  const studentSnapshot = await admin
+    .firestore()
+    .collection("classes")
+    .doc(idClass)
+    .collection("students")
+    .doc(idStudent)
+    .get();
+
+  if (!studentSnapshot.exists) {
+    throw new HTTPNotFoundError("Siswa tidak ditemukan");
+  }
+
+  const studentData = studentSnapshot.data();
+  res.json(studentData);
+}
 
 // NOTE: Leave class doesn't delete user data in a class ie. answers, discussion, etc.
 async function deleteHandler(req, res) {

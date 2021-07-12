@@ -7,6 +7,7 @@ import {List, Box, ListItem, Flex, Text, useDisclosure} from "@chakra-ui/react";
 
 import ErrorFallback from "components/ErrorFallback";
 import {Loader} from "components/Loader";
+import ConfirmationPrompt from "components/ConfirmationPrompt";
 import DiscussionSearch from "./DiscussionSearch";
 import {DiscussionItemPreview} from "./DiscussionItem";
 import DiscussionCreatorModal from "./DiscussionCreatorModal";
@@ -17,6 +18,7 @@ export default function DiscussionItems() {
   const router = useRouter();
   const {user} = useAuth();
   const {isOpen, onClose, onOpen} = useDisclosure();
+  const [deleteItem, setDeleteItem] = React.useState(null);
   const {cid: classId, taskItem, q} = router.query;
   let url = `/api/classes/${classId}/discussions`;
 
@@ -50,8 +52,8 @@ export default function DiscussionItems() {
     await mutate([newDiscussion, ...discussions], false);
   }
 
-  async function onDelete(discussionId) {
-    const url = `/api/classes/${classId}/discussions/${discussionId}`;
+  async function handleDeleteDiscussion() {
+    const url = `/api/classes/${classId}/discussions/${deleteItem.id}`;
     await axios.delete(url);
     await mutate();
   }
@@ -60,6 +62,14 @@ export default function DiscussionItems() {
     <Box marginLeft="10" flex="1" width="100%" maxWidth="620px">
       {(function () {
         if (!discussions && error) {
+          if (error.response && error.response.data.error.code === 404) {
+            return (
+              <Text color="gray.600" textAlign="center">
+                {error.response.data.error.message}
+              </Text>
+            );
+          }
+
           return (
             <Flex justifyContent="center" alignItems="center">
               <ErrorFallback
@@ -89,7 +99,7 @@ export default function DiscussionItems() {
                   isAuthor={user.id === d.author.id}
                   tagTitle={d.taskItem.title}
                   tagUrl={tagUrl}
-                  onDelete={() => onDelete(d.id)}
+                  onDelete={() => setDeleteItem(d)}
                 />
               </ListItem>
             );
@@ -101,6 +111,16 @@ export default function DiscussionItems() {
                 isOpen={isOpen}
                 onClose={onClose}
                 onCreate={handleCreateDiscussion}
+              />
+              <ConfirmationPrompt
+                title="Hapus diskusi"
+                actionTitle="Hapus"
+                description="Yakin ingin menghapus diskusi?"
+                successMessage="Diskusi berhasil dihapus"
+                errorMessage="Operasi gagal dilakukan"
+                isOpen={Boolean(deleteItem)}
+                onClose={() => setDeleteItem(null)}
+                onConfirmation={handleDeleteDiscussion}
               />
               <DiscussionSearch onSearch={handleSearch} onOpenModal={onOpen} />
               <List spacing="4" marginTop="8">

@@ -1,6 +1,6 @@
 import admin from "utils/firebase-admin";
 import {HTTPNotFoundError} from "utils/errors";
-import {withAuth, withMethod} from "utils/server-helpers";
+import {withAuth, withError, withMethod} from "utils/server-helpers";
 
 const handlerObj = {
   GET: getHandler,
@@ -9,22 +9,16 @@ const handlerObj = {
 
 async function getHandler(req, res) {
   const {id: classId, did: discussionId} = req.query;
-  const userClassRef = admin
+  const userClassSnapshot = await admin
     .firestore()
     .collection("users")
     .doc(req.authenticatedUser.user_id)
     .collection("classes")
-    .doc(classId);
-  const cls = await userClassRef.get();
+    .doc(classId)
+    .get();
 
-  if (!cls.exists) {
-    const error = new HTTPNotFoundError("Kelas tidak ditemukan");
-    return res.status(error.code).json({
-      error: {
-        ...error,
-        message: error.message
-      }
-    });
+  if (!userClassSnapshot.exists) {
+    throw new HTTPNotFoundError("Kelas tidak ditemukan");
   }
 
   const discussionRef = admin
@@ -33,48 +27,38 @@ async function getHandler(req, res) {
     .doc(classId)
     .collection("discussions")
     .doc(discussionId);
-  const discussion = await discussionRef.get();
+  const discussionSnapshot = await discussionRef.get();
 
-  if (!discussion.exists) {
-    const error = new HTTPNotFoundError("Diskusi tidak ditemukan");
-    return res.status(error.code).json({
-      error: {
-        ...error,
-        message: error.message
-      }
-    });
+  if (!discussionSnapshot.exists) {
+    throw new HTTPNotFoundError("Diskusi tidak ditemukan");
   }
 
-  const discussionReplies = await discussionRef
+  const discussionRepliesSnapshot = await discussionRef
     .collection("replies")
     .orderBy("createdAt", "asc")
     .get();
-  const discussionRepliesData = discussionReplies.docs.map(d => d.data());
+  const discussionRepliesData = discussionRepliesSnapshot.docs.map(d =>
+    d.data()
+  );
   res.json(discussionRepliesData);
 }
 
 async function postHandler(req, res) {
   const {text} = req.body;
   const {id: classId, did: discussionId} = req.query;
-  const userClassRef = admin
+  const userClassSnapshot = await admin
     .firestore()
     .collection("users")
     .doc(req.authenticatedUser.user_id)
     .collection("classes")
-    .doc(classId);
-  const cls = await userClassRef.get();
+    .doc(classId)
+    .get();
 
-  if (!cls.exists) {
-    const error = new HTTPNotFoundError("Kelas tidak ditemukan");
-    return res.status(error.code).json({
-      error: {
-        ...error,
-        message: error.message
-      }
-    });
+  if (!userClassSnapshot.exists) {
+    throw new HTTPNotFoundError("Kelas tidak ditemukan");
   }
 
-  const discussion = await admin
+  const discussionSnapshot = await admin
     .firestore()
     .collection("classes")
     .doc(classId)
@@ -82,22 +66,16 @@ async function postHandler(req, res) {
     .doc(discussionId)
     .get();
 
-  if (!discussion.exists) {
-    const error = new HTTPNotFoundError("Item tidak ditemukan");
-    return res.status(error.code).json({
-      error: {
-        ...error,
-        message: error.message
-      }
-    });
+  if (!discussionSnapshot.exists) {
+    throw new HTTPNotFoundError("Item tidak ditemukan");
   }
 
-  const user = await admin
+  const userSnapshot = await admin
     .firestore()
     .collection("users")
     .doc(req.authenticatedUser.user_id)
     .get();
-  const userData = user.data();
+  const userData = userSnapshot.data();
   const newReplyRef = admin
     .firestore()
     .collection("classes")
@@ -119,16 +97,16 @@ async function postHandler(req, res) {
     });
 
     t.update(
-      discussion.ref,
+      discussionSnapshot.ref,
       {
         repliesCount: admin.firestore.FieldValue.increment(1)
       },
       {merge: true}
     );
   });
-
-  const newReply = await newReplyRef.get();
-  res.json(newReply.data());
+  const newReplySnapshot = await newReplyRef.get();
+  const newReplyData = newReplySnapshot.data();
+  res.json(newReplyData);
 }
 
-export default withAuth(withMethod(handlerObj));
+export default withError(withAuth(withMethod(handlerObj)));

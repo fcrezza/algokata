@@ -1,4 +1,4 @@
-import {withAuth, withMethod} from "utils/server-helpers";
+import {withAuth, withError, withMethod} from "utils/server-helpers";
 import admin from "utils/firebase-admin";
 import {HTTPForbiddenError, HTTPNotFoundError} from "utils/errors";
 
@@ -9,22 +9,16 @@ const handlerObj = {
 async function deleteHandler(req, res) {
   const {id: idClass, did: discussionId, rid: replyId} = req.query;
 
-  const userClassRef = admin
+  const userClassSnapshot = await admin
     .firestore()
     .collection("users")
     .doc(req.authenticatedUser.user_id)
     .collection("classes")
-    .doc(idClass);
-  let cls = await userClassRef.get();
+    .doc(idClass)
+    .get();
 
-  if (!cls.exists) {
-    const error = new HTTPNotFoundError("Kelas tidak ditemukan");
-    return res.status(error.code).json({
-      error: {
-        ...error,
-        message: error.message
-      }
-    });
+  if (!userClassSnapshot.exists) {
+    throw new HTTPNotFoundError("Kelas tidak ditemukan");
   }
 
   const discussionRef = admin
@@ -34,28 +28,16 @@ async function deleteHandler(req, res) {
     .collection("discussions")
     .doc(discussionId);
   const replyRef = discussionRef.collection("replies").doc(replyId);
-  const reply = await replyRef.get();
+  const replySnapshot = await replyRef.get();
 
-  if (!reply.exists) {
-    const error = new HTTPNotFoundError("Komentar tidak ditemukan");
-    return res.status(error.code).json({
-      error: {
-        ...error,
-        message: error.message
-      }
-    });
+  if (!replySnapshot.exists) {
+    throw new HTTPNotFoundError("Komentar tidak ditemukan");
   }
 
-  const replyData = reply.data();
+  const replyData = replySnapshot.data();
 
   if (req.authenticatedUser.user_id !== replyData.author.id) {
-    const error = new HTTPForbiddenError("Operasi tidak diizinkan");
-    return res.status(error.code).json({
-      error: {
-        ...error,
-        message: error.message
-      }
-    });
+    throw new HTTPForbiddenError("Operasi tidak diizinkan");
   }
 
   await admin.firestore().runTransaction(async function (t) {
@@ -69,7 +51,7 @@ async function deleteHandler(req, res) {
     );
   });
 
-  res.json({message: "Berhasil dihapus"});
+  res.json({message: "Komentar berhasil dihapus"});
 }
 
-export default withAuth(withMethod(handlerObj));
+export default withError(withAuth(withMethod(handlerObj)));

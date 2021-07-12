@@ -21,6 +21,7 @@ export default function DiscussionReplyCreator() {
       setError({});
       await axios.post(url, {text});
       await mutate(url);
+      await mutate(`/api/classes/${classId}/discussions/${discussionId}`);
       setIsSubmitting(false);
       setText("");
     } catch (e) {

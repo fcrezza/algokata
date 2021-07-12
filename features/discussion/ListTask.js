@@ -24,7 +24,30 @@ export default function ListTask() {
   const accordionItems = [];
   let activeIndex = 0;
 
-  if (tasks) {
+  if (!tasks && error) {
+    return (
+      <Flex
+        justifyContent="center"
+        alignItems="center"
+        width="300px"
+        height="150px"
+        borderWidth="1px"
+        borderStyle="solid"
+        borderColor="gray.200"
+      >
+        {error.response && error.response.data.error.code === 404 ? (
+          <Text color="gray.600">{error.response.data.error.message}</Text>
+        ) : (
+          <ErrorFallback
+            errorMessage="Upsss, Gagal memuat data"
+            onRetry={() => mutate(null)}
+          />
+        )}
+      </Flex>
+    );
+  }
+
+  if (tasks && tasks.length > 0) {
     tasks.forEach(function (task, taskIndex) {
       const taskTitle = task.title;
       const taskItems = [];
@@ -70,28 +93,7 @@ export default function ListTask() {
 
       accordionItems.push(accordionItem);
     });
-  }
 
-  if (!tasks && error) {
-    return (
-      <Flex
-        justifyContent="center"
-        alignItems="center"
-        width="300px"
-        height="150px"
-        borderWidth="1px"
-        borderStyle="solid"
-        borderColor="gray.200"
-      >
-        <ErrorFallback
-          errorMessage="Upsss, Gagal memuat data"
-          onRetry={() => mutate(null)}
-        />
-      </Flex>
-    );
-  }
-
-  if (tasks && tasks.length > 0) {
     return (
       <Accordion
         defaultIndex={activeIndex}

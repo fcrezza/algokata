@@ -4,8 +4,7 @@ import {withAuth, withMethod, withError} from "utils/server-helpers";
 
 const objHandler = {
   GET: getHandler,
-  POST: postHandler,
-  PUT: putHandler
+  POST: postHandler
 };
 
 async function getHandler(req, res) {
@@ -122,70 +121,6 @@ async function postHandler(req, res) {
   });
 
   res.json({message: "sukses menyimpan jawaban"});
-}
-
-// This handler used to give feedback from teacher to student
-async function putHandler(req, res) {
-  const {id: idClass, aid: activityId, userId} = req.query;
-  const {value, message} = req.body;
-  const userClass = await admin
-    .firestore()
-    .collection("users")
-    .doc(req.authenticatedUser.user_id)
-    .collection("classes")
-    .doc(idClass)
-    .get();
-
-  if (!userClass.exists) {
-    throw new HTTPNotFoundError("Kelas tidak ditemukan");
-  }
-
-  const userClassData = userClass.data();
-
-  if (!userClassData.isTeacher) {
-    throw new HTTPNotFoundError(
-      "Operasi membutuhkan role sebagai pengajar kelas"
-    );
-  }
-
-  const activityRef = admin
-    .firestore()
-    .doc(`classes/${idClass}/activities/${activityId}`);
-  const activity = await activityRef.get();
-
-  if (!activity.exists) {
-    throw new HTTPNotFoundError("Aktivitas tidak  ditemukan tidak ditemukan");
-  }
-
-  let answerSnapshot = await activityRef
-    .collection("studentAnswers")
-    .doc(userId)
-    .get();
-
-  if (!answerSnapshot.exists) {
-    throw new HTTPNotFoundError("Data tidak ditemukan tidak ditemukan");
-  }
-
-  answerSnapshot.ref.set(
-    {
-      feedback: {
-        value,
-        message
-      }
-    },
-    {
-      merge: true
-    }
-  );
-  answerSnapshot = await answerSnapshot.ref.get();
-  const answerData = answerSnapshot.data();
-  const listAnswerSnapshot = await activityRef
-    .collection("studentAnswers")
-    .doc(userId)
-    .collection("answers")
-    .get();
-  const listAnswer = listAnswerSnapshot.docs.map(a => a.data());
-  return res.json({...answerData, answers: listAnswer});
 }
 
 export default withError(withAuth(withMethod(objHandler)));

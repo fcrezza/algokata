@@ -40,7 +40,6 @@ const OptionButton = React.forwardRef((props, ref) => {
 });
 
 export function DiscussionItemPreview(props) {
-  const {isOpen, onClose, onOpen} = useDisclosure();
   const {
     title,
     description,
@@ -56,81 +55,64 @@ export function DiscussionItemPreview(props) {
   } = props;
 
   return (
-    <React.Fragment>
-      <ConfirmationPrompt
-        title="Hapus diskusi"
-        actionTitle="Hapus"
-        description="Yakin ingin menghapus diskusi?"
-        successMessage="Diskusi berhasil dihapus"
-        errorMessage="Operasi gagal dilakukan"
-        isOpen={isOpen}
-        onClose={onClose}
-        onConfirmation={onDelete}
-      />
-      <Box
-        padding="4"
-        borderWidth="1px"
-        borderColor="gray.200"
-        borderStyle="solid"
-        color="gray.800"
-        position="relative"
-      >
-        <Tag colorScheme="green" marginBottom="3">
-          <NextLink href={tagUrl}>{tagTitle}</NextLink>
-        </Tag>
-        <Box marginBottom="3" paddingRight="10">
-          <NextLink href={href} passHref>
-            <Link>
-              <Text
-                color="gray.800"
-                fontSize="xl"
-                fontWeight="bold"
-                isTruncated
-              >
-                {title}
-              </Text>
-            </Link>
-          </NextLink>
-        </Box>
-        <Text color="gray.600" noOfLines={2} fontSize="md">
-          {description}
-        </Text>
-        <Flex alignItems="center" justifyContent="space-between" marginTop="6">
-          <Flex alignItems="center">
-            <Avatar src={authorAvatar} size="sm" name={authorFullname} />
-            <Text marginLeft="3" color="gray.500" fontSize="sm">
-              {authorFullname}
+    <Box
+      padding="4"
+      borderWidth="1px"
+      borderColor="gray.200"
+      borderStyle="solid"
+      color="gray.800"
+      position="relative"
+    >
+      <Tag colorScheme="green" marginBottom="3">
+        <NextLink href={tagUrl}>{tagTitle}</NextLink>
+      </Tag>
+      <Box marginBottom="3" paddingRight="10">
+        <NextLink href={href} passHref>
+          <Link>
+            <Text color="gray.800" fontSize="xl" fontWeight="bold" isTruncated>
+              {title}
             </Text>
-            <Box
-              width="3px"
-              height="3px"
-              backgroundColor="gray.500"
-              borderRadius="50%"
-              marginX="3"
-            ></Box>
-            <Text color="gray.500" fontSize="sm">
-              {timestamp}
-            </Text>
-          </Flex>
-          <Flex alignItems="center">
-            <Text color="gray.600" fontWeight="medium" marginRight="1">
-              {totalReply}
-            </Text>
-            <Icon as={MdChat} fontSize="24" color="gray.600" />
-          </Flex>
-        </Flex>
-        {isAuthor ? (
-          <Menu placement="left-start" isLazy>
-            <MenuButton as={OptionButton} />
-            <MenuList>
-              <MenuItem color="red.500" onClick={onOpen}>
-                Hapus
-              </MenuItem>
-            </MenuList>
-          </Menu>
-        ) : null}
+          </Link>
+        </NextLink>
       </Box>
-    </React.Fragment>
+      <Text color="gray.600" noOfLines={2} fontSize="md">
+        {description}
+      </Text>
+      <Flex alignItems="center" justifyContent="space-between" marginTop="6">
+        <Flex alignItems="center">
+          <Avatar src={authorAvatar} size="sm" name={authorFullname} />
+          <Text marginLeft="3" color="gray.500" fontSize="sm">
+            {authorFullname}
+          </Text>
+          <Box
+            width="3px"
+            height="3px"
+            backgroundColor="gray.500"
+            borderRadius="50%"
+            marginX="3"
+          ></Box>
+          <Text color="gray.500" fontSize="sm">
+            {timestamp}
+          </Text>
+        </Flex>
+        <Flex alignItems="center">
+          <Text color="gray.600" fontWeight="medium" marginRight="1">
+            {totalReply}
+          </Text>
+          <Icon as={MdChat} fontSize="24" color="gray.600" />
+        </Flex>
+      </Flex>
+      {isAuthor ? (
+        <Menu placement="left-start" isLazy>
+          <MenuButton as={OptionButton} />
+          <MenuList>
+            <MenuItem color="red.500" onClick={onDelete}>
+              Hapus
+            </MenuItem>
+          </MenuList>
+        </Menu>
+      ) : null}
+    </Box>
   );
 }
 

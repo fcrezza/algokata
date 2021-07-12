@@ -56,11 +56,19 @@ export default function DiscussionCreatorModal({isOpen, onClose, onCreate}) {
       });
     } catch (error) {
       setIsSubmitting(false);
-      toast({
-        status: "error",
-        title: `Upsss, gagal melakukan operasi`,
-        isClosable: true
-      });
+      if (error.response) {
+        toast({
+          status: "error",
+          title: error.response.data.error.message,
+          isClosable: true
+        });
+      } else {
+        toast({
+          status: "error",
+          title: `Upsss, gagal melakukan operasi`,
+          isClosable: true
+        });
+      }
     }
   }
 
@@ -145,6 +153,7 @@ export default function DiscussionCreatorModal({isOpen, onClose, onCreate}) {
                     <Select
                       value={selectedTask}
                       onChange={e => setSelectedTask(e.target.value)}
+                      isRequired
                     >
                       {selectOptions}
                     </Select>
