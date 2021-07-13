@@ -1,34 +1,57 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Algokata
+
+Algokata adalah platform pembelajaran pemrograman dan algoritma yang memberikan siswa dan pengajar untuk melakukan kegiatan belajar dan mengajar secara interaktif.
+
+Live project: [algokata.vercel.app](https://algokata.vercel.app)
+
+![Tampilan halaman utama algokata](https://res.cloudinary.com/ds1qv6d0u/image/upload/v1626190649/storage/algokata.vercel.app_home_1_g4hgi8.png)
+
+### Dibuat menggunakan
+
+- [Next.js](https://nextjs.org/)
+- [Firebase](https://firebase.google.com/)
+- [Vercel](https://vercel.com/)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisite
 
-```bash
-npm run dev
-# or
-yarn dev
+- npm
+
+```
+npm install npm@latest -g
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Instalasi
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
+1. Clone repository
+```
+git clone https://github.com/fcrezza/algokata.git
+```
+2. Install NPM packages
+```
+npm install
+```
+3. Salin environment variabel
+```
+cat .env.example > .env
+```
+4. Jalankan server lokal
+```
+npm run dev
+```
+### Opsional
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
+Untuk dapat menjalankan dan validasi kode dari user, clone dan jalankan [code runner](https://github.com/fcrezza/algokata-code-runner) untuk project ini.
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+## Berkontribusi
 
-## Learn More
+1. Fork project
+2. Buat branch baru (`git checkout -b features/abc`)
+3. Buat commit terhadap perubahan (`git commit -m "menambahkan fitur abc"`)
+4. Push branch ke github (`git push origin features/abc`)
+5. Open pull request
 
-To learn more about Next.js, take a look at the following resources:
+## Kontak
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Anang Fachreza - [fachrezanang@gmail.com](mailto:fachrezanang@gmail.com)
